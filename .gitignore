@@ -1,5 +1,6 @@
 # Cache & generated data
 .cache/
+*.log
 
 # C++/CMake build artifacts
 backend/cpp/build/
@@ -13,10 +14,38 @@ venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.tanstack/
+
+# Environment
+.env
+.env.local
 
 # OS
 .DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Benchmark plots
+validation/
+benchmarks/output/
+
+# Coverage
+htmlcov/
+.coverage
+coverage/
+
+# Generated
+.wrangler/
+
+# Windows ADS zone identifiers
+*:Zone.Identifier
