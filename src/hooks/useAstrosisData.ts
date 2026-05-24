@@ -14,7 +14,7 @@ export function useHealth() {
   });
 }
 
-export function useConstellation(intervalMs = 5000) {
+export function useConstellation(intervalMs = 30000) {
   return useQuery<ConstellationResponse>({
     queryKey: ["constellation", getBackendUrl()],
     queryFn: async ({ signal }) => {
@@ -27,6 +27,6 @@ export function useConstellation(intervalMs = 5000) {
     },
     refetchInterval: intervalMs,
     refetchOnWindowFocus: false,
-    staleTime: 0,
+    staleTime: 15000,
   });
 }

@@ -40,30 +40,42 @@ class TLEIngestor:
             with open(cache_path, "r", encoding="utf-8") as f:
                 return f.read().strip().split("\n")
 
-        try:
-            logger.info("Fetching TLEs from Celestrak...")
-            with httpx.Client(timeout=30.0) as client:
-                params = {"FORMAT": "TLE"}
-                if satellite_id:
-                    params["CATNR"] = satellite_id
-                else:
-                    params["GROUP"] = "active"
+        # Try fetching with retries
+        max_retries = 2
+        timeout = 60.0  # Increased from 30s to 60s
+        
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(f"Fetching TLEs from Celestrak... (attempt {attempt + 1}/{max_retries + 1})")
+                with httpx.Client(timeout=timeout) as client:
+                    params = {"FORMAT": "TLE"}
+                    if satellite_id:
+                        params["CATNR"] = satellite_id
+                    else:
+                        params["GROUP"] = "active"
 
-                response = client.get(self.api_url, params=params)
-                response.raise_for_status()
+                    response = client.get(self.api_url, params=params)
+                    response.raise_for_status()
 
-                text_data = response.text.strip()
-                with open(cache_path, "w", encoding="utf-8") as f:
-                    f.write(text_data)
+                    text_data = response.text.strip()
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        f.write(text_data)
 
-                return text_data.split("\n")
-        except Exception as e:
-            logger.error(f"TLE fetch failed: {e}")
-            if os.path.exists(cache_path):
-                logger.warning("Using stale cache.")
-                with open(cache_path, "r", encoding="utf-8") as f:
-                    return f.read().strip().split("\n")
-            return []
+                    return text_data.split("\n")
+            except Exception as e:
+                logger.error(f"TLE fetch failed (attempt {attempt + 1}): {e}")
+                if attempt < max_retries:
+                    logger.info(f"Retrying in 2 seconds...")
+                    import time
+                    time.sleep(2)
+                continue
+
+        # All retries failed, try to use stale cache
+        if os.path.exists(cache_path):
+            logger.warning("All fetch attempts failed, using stale cache.")
+            with open(cache_path, "r", encoding="utf-8") as f:
+                return f.read().strip().split("\n")
+        return []
 
     @staticmethod
     def _tle_checksum_valid(line: str) -> bool:

@@ -94,10 +94,16 @@ if (typeof window !== "undefined") {
 }
 
 export function useEpoch() {
+  const getServerSnapshot = () => {
+    if (typeof window === "undefined") {
+      return { epoch_ms: 0, paused: true, rate: 1, wall_ms: 0 };
+    }
+    return epochStore.get();
+  };
   return useSyncExternalStore(
     epochStore.subscribe,
     epochStore.get,
-    () => ({ epoch_ms: 0, paused: true, rate: 1, wall_ms: 0 }),
+    getServerSnapshot,
   );
 }
 
