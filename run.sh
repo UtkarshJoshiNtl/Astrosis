@@ -33,6 +33,20 @@ case $choice in
         echo "Press Ctrl+C to stop both servers"
         echo ""
         
+        # Kill any leftover process on port 8000 from a prior run
+        kill $(ss -tlnp | grep ':8000 ' | grep -oP 'pid=\K\d+') 2>/dev/null
+        sleep 1
+
+        cleanup() {
+            echo ""
+            echo "Shutting down..."
+            kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+            wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
+            echo "Stopped."
+            exit 0
+        }
+        trap cleanup SIGINT SIGTERM
+        
         # Start backend in background
         python server.py &
         BACKEND_PID=$!
@@ -45,7 +59,7 @@ case $choice in
         FRONTEND_PID=$!
         
         # Wait for both processes
-        wait $BACKEND_PID $FRONTEND_PID
+        wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
         ;;
     *)
         echo "Invalid choice. Please run again and select 1 or 2."

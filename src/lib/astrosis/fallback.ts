@@ -70,15 +70,50 @@ export async function fetchTLEs(group = "active", signal?: AbortSignal): Promise
   return parseTLEs(await res.text(), 600);
 }
 
+export function generateSyntheticSeeds(count = 500): SatelliteRecord[] {
+  const out: SatelliteRecord[] = [];
+  const now = Date.now();
+  for (let i = 0; i < count; i++) {
+    const inc = 50 + Math.random() * 50;
+    const raan = Math.random() * 360;
+    const a = 6371 + 400 + Math.random() * 500;
+    const M = Math.random() * 360;
+    const r = a;
+    const x = r * (Math.cos(M * Math.PI / 180) * Math.cos(raan * Math.PI / 180) - Math.sin(M * Math.PI / 180) * Math.sin(raan * Math.PI / 180) * Math.cos(inc * Math.PI / 180));
+    const y = r * (Math.cos(M * Math.PI / 180) * Math.sin(raan * Math.PI / 180) + Math.sin(M * Math.PI / 180) * Math.cos(raan * Math.PI / 180) * Math.cos(inc * Math.PI / 180));
+    const z = r * Math.sin(M * Math.PI / 180) * Math.sin(inc * Math.PI / 180);
+    out.push({
+      id: i,
+      name: `DEMO-${i}`,
+      pos: [x, y, z],
+      altitude_km: a - 6371,
+      inclination_deg: inc,
+      period_min: 2 * Math.PI * Math.sqrt((a * a * a) / 398600.4418) / 60,
+      speed_kms: Math.sqrt(398600.4418 / a),
+    });
+  }
+  return out;
+}
+
 export async function offlineConstellation(group = "active"): Promise<ConstellationResponse> {
-  const tles = await fetchTLEs(group);
-  const now = new Date();
+  let satellites: SatelliteRecord[];
+  let source: "live" | "offline-sgp4" = "offline-sgp4";
+  let backend = "OFFLINE · SGP4 reference (satellite.js)";
+  try {
+    const tles = await fetchTLEs(group);
+    const now = new Date();
+    satellites = propagateAll(tles, now);
+  } catch {
+    satellites = generateSyntheticSeeds(500);
+    source = "offline-sgp4";
+    backend = "OFFLINE · CELESTRAK UNAVAILABLE · DEMO MODE";
+  }
   return {
-    satellites: propagateAll(tles, now),
-    epoch: now.toISOString(),
-    source: "offline-sgp4",
-    backend: "OFFLINE · SGP4 reference (satellite.js)",
-    count: tles.length,
+    satellites,
+    epoch: new Date().toISOString(),
+    source,
+    backend,
+    count: satellites.length,
   };
 }
 

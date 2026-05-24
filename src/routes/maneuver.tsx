@@ -12,7 +12,7 @@ export const Route = createFileRoute("/maneuver")({
 
 function ManeuverPage() {
   const health = useHealth();
-  const backendLabel = health.data?.backend ?? "OFFLINE SGP4";
+  const backendLabel = health.data?.backend ?? "OFFLINE";
   const isOnline = health.data?.ok ?? false;
 
   const [r1, setR1] = useState("7171");
@@ -38,7 +38,7 @@ function ManeuverPage() {
   }
 
   return (
-    <PageShell backendLabel={backendLabel}>
+    <PageShell backendLabel={backendLabel} health={health.data}>
       <div className="h-full flex">
         <div className="w-72 p-4 surface hairline-r space-y-3 text-[11px]">
           <h2 className="tag mb-2">Hohmann Transfer</h2>
@@ -88,21 +88,23 @@ function ManeuverPage() {
                   <Row label="Mass ratio" value={result.mass_ratio.toFixed(3)} />
                 )}
               </div>
-              <div className="hairline p-3">
-                <div className="flex justify-between text-muted-foreground mb-1">
-                  <span>Fuel remaining</span>
-                  <span>{result.fuel_remaining_kg?.toFixed(0) ?? "—"} kg</span>
+              {result.fuel_used_kg != null && result.fuel_remaining_kg != null && (
+                <div className="hairline p-3">
+                  <div className="flex justify-between text-muted-foreground mb-1">
+                    <span>Fuel remaining</span>
+                    <span>{result.fuel_remaining_kg.toFixed(0)} kg</span>
+                  </div>
+                  <div className="h-2 surface-2 relative">
+                    {(() => {
+                      const total = result.fuel_used_kg! + result.fuel_remaining_kg!;
+                      const pct = total > 0 ? (result.fuel_remaining_kg! / total) * 100 : 0;
+                      return (
+                        <div className="absolute inset-y-0 left-0 bg-[var(--primary)]" style={{ width: `${100 - pct}%` }} />
+                      );
+                    })()}
+                  </div>
                 </div>
-                <div className="h-2 surface-2 relative">
-                  {result.fuel_used_kg != null && result.fuel_remaining_kg != null && (() => {
-                    const total = result.fuel_used_kg + result.fuel_remaining_kg;
-                    const pct = total > 0 ? (result.fuel_remaining_kg / total) * 100 : 0;
-                    return (
-                      <div className="absolute inset-y-0 left-0 bg-[var(--primary)]" style={{ width: `${100 - pct}%` }} />
-                    );
-                  })()}
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>

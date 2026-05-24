@@ -19,7 +19,8 @@ function ConnectPage() {
     queryKey: ["health", url],
     queryFn: ({ signal }) => fetchHealth(signal),
     retry: 0,
-    staleTime: 15000,
+    staleTime: 5000,
+    refetchInterval: 5000,
     refetchOnWindowFocus: false,
   });
 
@@ -28,7 +29,7 @@ function ConnectPage() {
   }
 
   return (
-    <PageShell backendLabel={health?.backend ?? "—"}>
+    <PageShell backendLabel={health?.backend ?? "—"} health={health}>
       <div className="h-full flex flex-col p-4 overflow-auto max-w-2xl">
         <h1 className="text-sm font-semibold mb-4">Connect Backend</h1>
 
@@ -53,23 +54,22 @@ function ConnectPage() {
           ) : health ? (
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-[var(--ok)]" />
-                <span className="font-medium text-foreground">Connected</span>
+                <span className="inline-block w-2 h-2" style={{ background: "var(--ok)" }} />
+                <span className="font-medium text-foreground">CONNECTED</span>
               </div>
-              <div className="text-muted-foreground">
-                <span className="tag">Backend:</span> {health.backend}
-              </div>
-              <div className="text-muted-foreground">
-                <span className="tag">Engine:</span> {health.engine_version}
-              </div>
-              <div className="text-muted-foreground">
-                <span className="tag">CUDA:</span> {health.cuda_available ? `Yes (${health.cuda_device ?? ""})` : "No"}
+              <div className="font-mono text-muted-foreground text-[10px]">
+                {health.backend} &middot; Engine {health.engine_version} &middot; CUDA: {health.cuda_available ? "Yes" : "No"}
               </div>
             </div>
           ) : (
-            <div className="text-muted-foreground">
-              <span className="inline-block w-2 h-2 rounded-full bg-[var(--destructive)] mr-2" />
-              Not connected. Run the server and enter the URL above.
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2" style={{ background: "var(--destructive)" }} />
+                <span className="font-medium text-muted-foreground">OFFLINE</span>
+              </div>
+              <div className="font-mono text-muted-foreground text-[10px]">
+                Run: python server.py on port 8000
+              </div>
             </div>
           )}
         </div>

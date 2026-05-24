@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone
+from fastapi.responses import PlainTextResponse
 import math, os, sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -75,6 +76,44 @@ async def health():
         "cuda_device": info.get("cuda_device"),
         "ok": True,
     }
+
+
+@app.get("/api/public/tle")
+async def proxy_tle(group: str = "active"):
+    import httpx, os
+    FALLBACK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "active.txt")
+    sources = []
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=tle"
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                sources.append(resp.text)
+    except Exception:
+        pass
+
+    st_user = os.environ.get("SPACETRACK_USER")
+    st_pass = os.environ.get("SPACETRACK_PASS")
+    if st_user and st_pass:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                login = await client.post("https://www.space-track.org/ajaxauth/login",
+                    data={"identity": st_user, "password": st_pass})
+                if login.status_code == 200:
+                    resp = await client.get("https://www.space-track.org/basicspaceradar/query/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle")
+                    if resp.status_code == 200:
+                        sources.append(resp.text)
+        except Exception:
+            pass
+
+    if os.path.exists(FALLBACK):
+        with open(FALLBACK) as f:
+            sources.append(f.read())
+
+    if not sources:
+        return PlainTextResponse("# No TLE sources available\n", status_code=503)
+    return PlainTextResponse(sources[0])
 
 
 @app.get("/api/constellation")

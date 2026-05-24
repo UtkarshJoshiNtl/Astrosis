@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageShell, useUtcClock } from "@/components/shell/Chrome";
 import { Sidebar } from "@/components/shell/Sidebar";
@@ -33,18 +33,24 @@ function WorkbenchPage() {
   const health = useHealth();
   const constellation = useConstellation();
   const utc = useUtcClock();
+  const navigate = useNavigate();
 
   const satellites = constellation.data?.satellites ?? [];
-  const backendLabel = health.data?.backend ?? constellation.data?.backend ?? "OFFLINE SGP4";
+  const backendLabel = health.data?.backend ?? constellation.data?.backend ?? "OFFLINE";
+  const demoMode = constellation.data?.source === "offline-sgp4" || !health.data?.ok;
   const when = new Date(epoch.epoch_ms);
 
   return (
-    <PageShell backendLabel={backendLabel}>
+    <PageShell backendLabel={backendLabel} health={health.data}>
       <div className="h-full flex">
         <Sidebar
           satellites={satellites}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={(id) => {
+            if (id != null) navigate({ to: `/object/${id}` });
+            else setSelectedId(null);
+          }}
+          demoMode={demoMode}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 flex min-h-0">
@@ -53,9 +59,10 @@ function WorkbenchPage() {
                 satellites={satellites}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                when={when}
               />
             </div>
-            <div className="w-[360px] hairline-l surface min-h-0 overflow-auto">
+            <div className="w-[380px] hairline-l surface min-h-0 overflow-auto">
               <GroundTrack
                 sats={satellites}
                 selectedId={selectedId}

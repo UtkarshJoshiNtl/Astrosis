@@ -2,6 +2,8 @@
 #include "physics_constants.h"
 #include <cmath>
 
+ManeuverCalculator::ManeuverCalculator() = default;
+
 static double fuel_cost_kg(double dv_mag_km_s) {
     return INITIAL_FUEL * (1.0 - std::exp(-dv_mag_km_s / (ISP * G0_KM)));
 }

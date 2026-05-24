@@ -17,7 +17,6 @@ import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ConjunctionsRouteImport } from './routes/conjunctions'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ObjectNoradRouteImport } from './routes/object/$norad'
-import { Route as ApiPublicTleRouteImport } from './routes/api/public/tle'
 
 const ValidationRoute = ValidationRouteImport.update({
   id: '/validation',
@@ -59,11 +58,6 @@ const ObjectNoradRoute = ObjectNoradRouteImport.update({
   path: '/object/$norad',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicTleRoute = ApiPublicTleRouteImport.update({
-  id: '/api/public/tle',
-  path: '/api/public/tle',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,7 +68,6 @@ export interface FileRoutesByFullPath {
   '/performance': typeof PerformanceRoute
   '/validation': typeof ValidationRoute
   '/object/$norad': typeof ObjectNoradRoute
-  '/api/public/tle': typeof ApiPublicTleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,7 +78,6 @@ export interface FileRoutesByTo {
   '/performance': typeof PerformanceRoute
   '/validation': typeof ValidationRoute
   '/object/$norad': typeof ObjectNoradRoute
-  '/api/public/tle': typeof ApiPublicTleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,7 +89,6 @@ export interface FileRoutesById {
   '/performance': typeof PerformanceRoute
   '/validation': typeof ValidationRoute
   '/object/$norad': typeof ObjectNoradRoute
-  '/api/public/tle': typeof ApiPublicTleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,7 +101,6 @@ export interface FileRouteTypes {
     | '/performance'
     | '/validation'
     | '/object/$norad'
-    | '/api/public/tle'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -121,7 +111,6 @@ export interface FileRouteTypes {
     | '/performance'
     | '/validation'
     | '/object/$norad'
-    | '/api/public/tle'
   id:
     | '__root__'
     | '/'
@@ -132,7 +121,6 @@ export interface FileRouteTypes {
     | '/performance'
     | '/validation'
     | '/object/$norad'
-    | '/api/public/tle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -144,7 +132,6 @@ export interface RootRouteChildren {
   PerformanceRoute: typeof PerformanceRoute
   ValidationRoute: typeof ValidationRoute
   ObjectNoradRoute: typeof ObjectNoradRoute
-  ApiPublicTleRoute: typeof ApiPublicTleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -205,13 +192,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ObjectNoradRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/tle': {
-      id: '/api/public/tle'
-      path: '/api/public/tle'
-      fullPath: '/api/public/tle'
-      preLoaderRoute: typeof ApiPublicTleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -224,7 +204,6 @@ const rootRouteChildren: RootRouteChildren = {
   PerformanceRoute: PerformanceRoute,
   ValidationRoute: ValidationRoute,
   ObjectNoradRoute: ObjectNoradRoute,
-  ApiPublicTleRoute: ApiPublicTleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

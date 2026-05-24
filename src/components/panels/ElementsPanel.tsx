@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchCatalogEntry } from "@/lib/astrosis/client";
+import { useConstellation } from "@/hooks/useAstrosisData";
 import type { CatalogEntry } from "@/lib/astrosis/types";
 
 export function ElementsPanel({ selectedId }: { selectedId: number | null }) {
@@ -10,6 +11,10 @@ export function ElementsPanel({ selectedId }: { selectedId: number | null }) {
     staleTime: 60000,
     refetchOnWindowFocus: false,
   });
+
+  const constellation = useConstellation(30000);
+  const satellites = constellation.data?.satellites ?? [];
+  const liveSat = satellites.find((s) => s.id === selectedId);
 
   if (!selectedId) {
     return <div className="p-4 text-[11px] text-muted-foreground">Select a satellite from the catalog.</div>;
@@ -48,6 +53,20 @@ export function ElementsPanel({ selectedId }: { selectedId: number | null }) {
           <Row label="Perigee" value={`${elements.perigee_km.toFixed(1)} km`} />
         </div>
       </div>
+
+      {liveSat && (
+        <div>
+          <div className="tag mb-1">State Vector (ECI)</div>
+          <div className="surface-2 hairline">
+            <Row label="Position" value={`[${liveSat.pos.map((v) => v.toFixed(1)).join(", ")}] km`} />
+            {liveSat.vel && (
+              <Row label="Velocity" value={`[${liveSat.vel.map((v) => v.toFixed(3)).join(", ")}] km/s`} />
+            )}
+            <Row label="Speed" value={`${(liveSat.speed_kms ?? 0).toFixed(3)} km/s`} />
+            <Row label="Altitude" value={`${(liveSat.altitude_km ?? 0).toFixed(1)} km`} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

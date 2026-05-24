@@ -6,20 +6,21 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Astrosis design system — a deliberately restrained, scientific palette.
- * No gradients, no glow, no backdrop blur, no rainbow ramps on data.
- * Single technical-amber accent for selection / active state.
- * Inspirations: JPL Horizons, GMAT, Heavens-Above, Celestrak.
+ * Astrosis design system — industrial / utilitarian.
+ * JPL Horizons, Heavens-Above, AGI STK aesthetic.
+ * No gradients, no glow, no backdrop blur.
+ * Amber accent for selection / active state only.
+ * IBM Plex Mono everywhere. Zero border-radius.
  */
 
 @theme inline {
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 2px;
-  --radius-xl: 4px;
-  --radius-2xl: 6px;
-  --radius-3xl: 8px;
-  --radius-4xl: 12px;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -56,91 +57,90 @@
 }
 
 :root {
-  --radius: 2px;
+  --radius: 0;
 
-  /* Paper / ink workstation palette. Cool near-black, near-white. */
-  --background: oklch(0.16 0.005 250);
-  --foreground: oklch(0.95 0.005 250);
-  --surface-1: oklch(0.19 0.005 250);
-  --surface-2: oklch(0.22 0.005 250);
+  /* Industrial palette — near-black, warm, dense */
+  --background: #0a0c0f;
+  --foreground: #d4dbe6;
+  --surface-1: #0f1318;
+  --surface-2: #151a21;
 
-  --card: oklch(0.19 0.005 250);
-  --card-foreground: oklch(0.95 0.005 250);
-  --popover: oklch(0.19 0.005 250);
-  --popover-foreground: oklch(0.95 0.005 250);
+  --card: #0f1318;
+  --card-foreground: #d4dbe6;
+  --popover: #0f1318;
+  --popover-foreground: #d4dbe6;
 
-  /* Primary == amber accent. Used sparingly for selection / active. */
-  --primary: oklch(0.78 0.13 75);
-  --primary-foreground: oklch(0.16 0.005 250);
+  /* Amber accent — selection / active ONLY */
+  --primary: #e8943a;
+  --primary-foreground: #0a0c0f;
 
-  --secondary: oklch(0.24 0.005 250);
-  --secondary-foreground: oklch(0.95 0.005 250);
+  --secondary: #151a21;
+  --secondary-foreground: #d4dbe6;
 
-  --muted: oklch(0.22 0.005 250);
-  --muted-foreground: oklch(0.65 0.01 250);
+  --muted: #151a21;
+  --muted-foreground: #5a6a7a;
 
-  --accent: oklch(0.24 0.005 250);
-  --accent-foreground: oklch(0.95 0.005 250);
+  --accent: #151a21;
+  --accent-foreground: #d4dbe6;
 
-  /* Status colors, muted. Used only for alerts/badges/Pc bands. */
-  --destructive: oklch(0.62 0.16 25);
-  --destructive-foreground: oklch(0.98 0.005 250);
-  --ok: oklch(0.68 0.13 145);
-  --warn: oklch(0.78 0.13 75);
+  /* Status colors — muted, functional */
+  --destructive: #9e4a4a;
+  --destructive-foreground: #d4dbe6;
+  --ok: #4a9e6b;
+  --warn: #c8882a;
 
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.78 0.13 75 / 50%);
+  --border: #1e2530;
+  --input: #1e2530;
+  --ring: rgba(232, 148, 58, 0.5);
 
-  /* Chart palette: amber + 4 desaturated supporting hues. Used for distinct
-   * series in line/bar plots, NEVER as a heatmap ramp. */
-  --chart-1: oklch(0.78 0.13 75);
-  --chart-2: oklch(0.68 0.06 220);
-  --chart-3: oklch(0.68 0.06 165);
-  --chart-4: oklch(0.62 0.08 25);
-  --chart-5: oklch(0.62 0.08 300);
+  /* Data blue for chart lines, supporting hues for series */
+  --chart-1: #4a8bbf;
+  --chart-2: #e8943a;
+  --chart-3: #4a9e6b;
+  --chart-4: #9e4a4a;
+  --chart-5: #5a6a7a;
 
-  --sidebar: oklch(0.18 0.005 250);
-  --sidebar-foreground: oklch(0.95 0.005 250);
-  --sidebar-primary: oklch(0.78 0.13 75);
-  --sidebar-primary-foreground: oklch(0.16 0.005 250);
-  --sidebar-accent: oklch(0.24 0.005 250);
-  --sidebar-accent-foreground: oklch(0.95 0.005 250);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.78 0.13 75 / 50%);
+  --sidebar: #0f1318;
+  --sidebar-foreground: #d4dbe6;
+  --sidebar-primary: #e8943a;
+  --sidebar-primary-foreground: #0a0c0f;
+  --sidebar-accent: #151a21;
+  --sidebar-accent-foreground: #d4dbe6;
+  --sidebar-border: #1e2530;
+  --sidebar-ring: rgba(232, 148, 58, 0.5);
 
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 .dark {
-  --background: oklch(0.16 0.005 250);
-  --foreground: oklch(0.95 0.005 250);
-  --card: oklch(0.19 0.005 250);
-  --card-foreground: oklch(0.95 0.005 250);
-  --popover: oklch(0.19 0.005 250);
-  --popover-foreground: oklch(0.95 0.005 250);
-  --primary: oklch(0.78 0.13 75);
-  --primary-foreground: oklch(0.16 0.005 250);
-  --secondary: oklch(0.24 0.005 250);
-  --secondary-foreground: oklch(0.95 0.005 250);
-  --muted: oklch(0.22 0.005 250);
-  --muted-foreground: oklch(0.65 0.01 250);
-  --accent: oklch(0.24 0.005 250);
-  --accent-foreground: oklch(0.95 0.005 250);
-  --destructive: oklch(0.62 0.16 25);
-  --destructive-foreground: oklch(0.98 0.005 250);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.78 0.13 75 / 50%);
-  --sidebar: oklch(0.18 0.005 250);
-  --sidebar-foreground: oklch(0.95 0.005 250);
-  --sidebar-primary: oklch(0.78 0.13 75);
-  --sidebar-primary-foreground: oklch(0.16 0.005 250);
-  --sidebar-accent: oklch(0.24 0.005 250);
-  --sidebar-accent-foreground: oklch(0.95 0.005 250);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.78 0.13 75 / 50%);
+  --background: #0a0c0f;
+  --foreground: #d4dbe6;
+  --card: #0f1318;
+  --card-foreground: #d4dbe6;
+  --popover: #0f1318;
+  --popover-foreground: #d4dbe6;
+  --primary: #e8943a;
+  --primary-foreground: #0a0c0f;
+  --secondary: #151a21;
+  --secondary-foreground: #d4dbe6;
+  --muted: #151a21;
+  --muted-foreground: #5a6a7a;
+  --accent: #151a21;
+  --accent-foreground: #d4dbe6;
+  --destructive: #9e4a4a;
+  --destructive-foreground: #d4dbe6;
+  --border: #1e2530;
+  --input: #1e2530;
+  --ring: rgba(232, 148, 58, 0.5);
+  --sidebar: #0f1318;
+  --sidebar-foreground: #d4dbe6;
+  --sidebar-primary: #e8943a;
+  --sidebar-primary-foreground: #0a0c0f;
+  --sidebar-accent: #151a21;
+  --sidebar-accent-foreground: #d4dbe6;
+  --sidebar-border: #1e2530;
+  --sidebar-ring: rgba(232, 148, 58, 0.5);
 }
 
 @layer base {
@@ -155,14 +155,15 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-sans);
-    font-size: 13px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "ss01", "cv01";
   }
 
-  code, kbd, .font-mono, .tabular {
+  code, .font-mono, .tabular {
     font-family: var(--font-mono);
     font-feature-settings: "tnum", "zero", "ss01";
   }
@@ -172,32 +173,33 @@
     font-feature-settings: "tnum", "zero";
   }
 
-  /* A thin hairline used everywhere instead of shadows. */
   .hairline { border: 1px solid var(--color-border); }
   .hairline-t { border-top: 1px solid var(--color-border); }
   .hairline-b { border-bottom: 1px solid var(--color-border); }
   .hairline-r { border-right: 1px solid var(--color-border); }
   .hairline-l { border-left: 1px solid var(--color-border); }
 
-  /* Small caps "TAG" used for section labels — readable but unmistakably UI chrome. */
   .tag {
     font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
+    font-size: 9px;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--color-muted-foreground);
   }
 
-  /* Workstation surface — solid, no blur, no gradient. */
   .surface { background-color: var(--surface-1); }
   .surface-2 { background-color: var(--surface-2); }
 
-  /* Scrollbars: thin, neutral. */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb {
-    background: oklch(1 0 0 / 8%);
+    background: rgba(255,255,255,0.08);
     border: 2px solid var(--color-background);
-    border-radius: 6px;
+    border-radius: 0;
   }
-  ::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 14%); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+  .selected-row {
+    border-left: 2px solid var(--color-primary);
+    background: var(--surface-2);
+  }
 }

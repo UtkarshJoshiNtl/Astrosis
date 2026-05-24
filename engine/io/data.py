@@ -11,7 +11,10 @@ __all__ = ["TLEIngestor", "tle_ingestor"]
 logger = logging.getLogger(__name__)
 
 LOCAL_CACHE_DIR = str(pathlib.Path.home() / ".cache" / "astrosis" / "tle")
+BUNDLED_CACHE = str(pathlib.Path(__file__).resolve().parent.parent.parent / "data" / "active.txt")
 CELESTRAK_API_URL = "https://celestrak.org/NORAD/elements/gp.php"
+SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
+SPACETRACK_TLE_URL = "https://www.space-track.org/basicspaceradar/query/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle"
 EPOCH_YEAR_CUTOFF = 57
 
 
@@ -33,6 +36,33 @@ class TLEIngestor:
         age = datetime.now() - datetime.fromtimestamp(mtime)
         return age <= timedelta(hours=max_age_hours)
 
+    def _try_fetch(self, url: str, params: dict, timeout: float = 15.0) -> Optional[str]:
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                resp = client.get(url, params=params)
+                resp.raise_for_status()
+                return resp.text.strip()
+        except Exception as e:
+            logger.warning(f"TLE fetch failed from {url}: {e}")
+            return None
+
+    def _try_spacetrack(self) -> Optional[str]:
+        user = os.environ.get("SPACETRACK_USER")
+        pwd = os.environ.get("SPACETRACK_PASS")
+        if not user or not pwd:
+            return None
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                login = client.post(SPACETRACK_LOGIN_URL, data={"identity": user, "password": pwd})
+                if login.status_code != 200:
+                    return None
+                resp = client.get(SPACETRACK_TLE_URL)
+                if resp.status_code == 200:
+                    return resp.text.strip()
+        except Exception as e:
+            logger.warning(f"Space-Track fetch failed: {e}")
+        return None
+
     def fetch_tle_data(self, satellite_id: Optional[str] = None, force_refresh: bool = False) -> List[str]:
         cache_path = self._get_cache_path(satellite_id)
         if not force_refresh and self._is_cache_valid(cache_path):
@@ -40,41 +70,37 @@ class TLEIngestor:
             with open(cache_path, "r", encoding="utf-8") as f:
                 return f.read().strip().split("\n")
 
-        # Try fetching with retries
-        max_retries = 2
-        timeout = 60.0  # Increased from 30s to 60s
-        
-        for attempt in range(max_retries + 1):
-            try:
-                logger.info(f"Fetching TLEs from Celestrak... (attempt {attempt + 1}/{max_retries + 1})")
-                with httpx.Client(timeout=timeout) as client:
-                    params = {"FORMAT": "TLE"}
-                    if satellite_id:
-                        params["CATNR"] = satellite_id
-                    else:
-                        params["GROUP"] = "active"
+        params = {"FORMAT": "TLE"}
+        if satellite_id:
+            params["CATNR"] = satellite_id
+        else:
+            params["GROUP"] = "active"
 
-                    response = client.get(self.api_url, params=params)
-                    response.raise_for_status()
+        text = self._try_fetch(self.api_url, params, timeout=15.0)
+        if text:
+            with open(cache_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return text.split("\n")
 
-                    text_data = response.text.strip()
-                    with open(cache_path, "w", encoding="utf-8") as f:
-                        f.write(text_data)
+        text = self._try_spacetrack()
+        if text:
+            with open(cache_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return text.split("\n")
 
-                    return text_data.split("\n")
-            except Exception as e:
-                logger.error(f"TLE fetch failed (attempt {attempt + 1}): {e}")
-                if attempt < max_retries:
-                    logger.info(f"Retrying in 2 seconds...")
-                    import time
-                    time.sleep(2)
-                continue
-
-        # All retries failed, try to use stale cache
         if os.path.exists(cache_path):
-            logger.warning("All fetch attempts failed, using stale cache.")
+            logger.warning("All remote TLE fetches failed, using stale cache.")
             with open(cache_path, "r", encoding="utf-8") as f:
                 return f.read().strip().split("\n")
+
+        if os.path.exists(BUNDLED_CACHE):
+            logger.warning("Using bundled fallback TLE cache from data/active.txt")
+            with open(BUNDLED_CACHE, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+            with open(cache_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return text.split("\n")
+
         return []
 
     @staticmethod

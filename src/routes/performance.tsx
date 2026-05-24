@@ -36,7 +36,7 @@ function PerformancePage() {
   const backendLabel = health.data?.backend ?? "—";
 
   return (
-    <PageShell backendLabel={backendLabel}>
+    <PageShell backendLabel={backendLabel} health={health.data}>
       <div className="h-full flex flex-col p-4 overflow-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-sm font-semibold">Performance Benchmarks</h1>
@@ -50,17 +50,17 @@ function PerformancePage() {
         <div className="h-64 mb-6">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={BENCH_DATA} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-              <CartesianGrid stroke="oklch(1 0 0 / 6%)" />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "oklch(0.65 0.01 250)" }} />
-              <YAxis tick={{ fontSize: 10, fill: "oklch(0.65 0.01 250)" }} label={{ value: "Time (ms)", angle: -90, position: "insideLeft", style: { fill: "oklch(0.65 0.01 250)", fontSize: 10 } }} />
+              <CartesianGrid stroke="#1e2530" strokeWidth={1} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }} />
+              <YAxis tick={{ fontSize: 10, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }} label={{ value: "Time (ms)", angle: -90, position: "insideLeft", style: { fill: "#5a6a7a", fontSize: 10, fontFamily: "IBM Plex Mono" } }} />
               <Tooltip
-                contentStyle={{ background: "oklch(0.19 0.005 250)", border: "1px solid oklch(1 0 0 / 10%)", borderRadius: 2, fontSize: 11 }}
-                labelStyle={{ color: "oklch(0.95 0.005 250)" }}
+                contentStyle={{ background: "#0f1318", border: "1px solid #1e2530", borderRadius: 0, fontSize: 11 }}
+                labelStyle={{ color: "#d4dbe6" }}
               />
               <Legend wrapperStyle={{ fontSize: 10 }} />
-              <Bar dataKey="Python" fill="oklch(0.62 0.08 25)" />
-              <Bar dataKey="C++" fill="oklch(0.68 0.06 220)" />
-              <Bar dataKey="CUDA" fill="oklch(0.78 0.13 75)" />
+              <Bar dataKey="Python" fill="#9e4a4a" />
+              <Bar dataKey="C++" fill="#4a8bbf" />
+              <Bar dataKey="CUDA" fill="#e8943a" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -78,7 +78,7 @@ function PerformancePage() {
             {SPEEDUP_DATA.map((row, i) => (
               <tr key={i} className="hairline-b">
                 <td className="px-3 py-1.5">{row.operation}</td>
-                <td className="text-right px-3 py-1.5 text-[var(--chart-2)]">{row.cpp}</td>
+                <td className="text-right px-3 py-1.5 text-[var(--chart-1)]">{row.cpp}</td>
                 <td className="text-right px-3 py-1.5 text-[var(--primary)]">{row.cuda}</td>
               </tr>
             ))}
@@ -86,8 +86,7 @@ function PerformancePage() {
         </table>
 
         <div className="text-[10px] text-muted-foreground space-y-1">
-          <p>Benchmarks from docs/performance.md. Python baseline in ms (lower is better).</p>
-          <p>CUDA includes host-device transfer overhead. FP64 arithmetic throughout.</p>
+          <p>Benchmarks from docs/performance.md · Python baseline · lower is better · FP64 throughout</p>
         </div>
       </div>
     </PageShell>

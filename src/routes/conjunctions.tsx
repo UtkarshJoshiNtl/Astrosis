@@ -11,14 +11,14 @@ export const Route = createFileRoute("/conjunctions")({
 
 function PcBand({ pc }: { pc?: number }) {
   if (pc == null) return <span className="text-muted-foreground">—</span>;
-  const level = pc > 1e-4 ? "destructive" : pc > 1e-6 ? "text-[var(--warn)]" : "text-muted-foreground";
+  const level = pc > 1e-4 ? "text-[var(--destructive)]" : pc > 1e-6 ? "text-[var(--warn)]" : "text-muted-foreground";
   return <span className={`num ${level}`}>{pc.toExponential(2)}</span>;
 }
 
 function ConjunctionsPage() {
   const constellation = useConstellation(30000);
   const health = useHealth();
-  const backendLabel = health.data?.backend ?? constellation.data?.backend ?? "OFFLINE SGP4";
+  const backendLabel = health.data?.backend ?? constellation.data?.backend ?? "OFFLINE";
   const satellites = constellation.data?.satellites ?? [];
   const norads = satellites.map((s) => s.id);
 
@@ -31,11 +31,14 @@ function ConjunctionsPage() {
   });
 
   return (
-    <PageShell backendLabel={backendLabel}>
+    <PageShell backendLabel={backendLabel} health={health.data}>
       <div className="h-full flex flex-col p-4">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-sm font-semibold">Conjunction Assessment</h1>
-          {isFetching && <span className="tag">scanning...</span>}
+          <div className="flex items-center gap-2 tag">
+            <span>Screening {norads.length} objects &middot; threshold 5km</span>
+            {isFetching && <span>SCANNING...</span>}
+          </div>
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-[11px] num">
@@ -58,7 +61,7 @@ function ConjunctionsPage() {
                   <td className="px-3 py-1.5">{p.a}</td>
                   <td className="px-3 py-1.5">{p.b}</td>
                   <td className="text-right px-3 py-1.5 font-mono">{new Date(p.tca).toISOString().replace("T", " ").slice(0, 19)}</td>
-                  <td className="text-right px-3 py-1.5">{p.miss_km.toFixed(3)}</td>
+                  <td className={`text-right px-3 py-1.5 ${p.miss_km < 1 ? "text-[var(--destructive)]" : p.miss_km < 5 ? "text-[var(--warn)]" : ""}`}>{p.miss_km.toFixed(3)}</td>
                   <td className="text-right px-3 py-1.5">{p.rel_vel_kms.toFixed(3)}</td>
                   <td className="text-right px-3 py-1.5"><PcBand pc={p.pc} /></td>
                 </tr>

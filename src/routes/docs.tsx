@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageShell, useUtcClock } from "@/components/shell/Chrome";
 import { useHealth } from "@/hooks/useAstrosisData";
 import Markdown from "react-markdown";
@@ -16,31 +16,34 @@ const DOC_FILES = [
   { id: "validation", label: "Validation" },
 ];
 
-const DOC_CONTENT: Record<string, string> = {};
-
-async function loadDocs() {
-  for (const doc of DOC_FILES) {
-    try {
-      const res = await fetch(`/docs/${doc.id}.md`);
-      DOC_CONTENT[doc.id] = await res.text();
-    } catch {
-      DOC_CONTENT[doc.id] = `# ${doc.label}\n\nFailed to load document.`;
-    }
-  }
-}
-
-loadDocs();
+const DOC_LABELS: Record<string, string> = {
+  architecture: "Architecture",
+  design: "Design Decisions",
+  performance: "Performance",
+  validation: "Validation",
+};
 
 function DocsPage() {
   const health = useHealth();
   const utc = useUtcClock();
   const backendLabel = health.data?.backend ?? "—";
   const [activeDoc, setActiveDoc] = useState("architecture");
+  const [contents, setContents] = useState<Record<string, string>>({});
 
-  const content = DOC_CONTENT[activeDoc] ?? `# ${activeDoc}\n\nLoading...`;
+  useEffect(() => {
+    for (const doc of DOC_FILES) {
+      if (contents[doc.id]) continue;
+      fetch(`/docs/${doc.id}.md`)
+        .then((res) => res.text())
+        .then((text) => setContents((prev) => ({ ...prev, [doc.id]: text })))
+        .catch(() => setContents((prev) => ({ ...prev, [doc.id]: `# ${doc.label}\n\nFailed to load document.` })));
+    }
+  }, [contents]);
+
+  const content = contents[activeDoc] ?? `# ${DOC_LABELS[activeDoc] ?? activeDoc}\n\nLoading...`;
 
   return (
-    <PageShell backendLabel={backendLabel}>
+    <PageShell backendLabel={backendLabel} health={health.data}>
       <div className="h-full flex">
         <div className="w-48 surface hairline-r p-3 text-[11px] space-y-1">
           {DOC_FILES.map((doc) => (

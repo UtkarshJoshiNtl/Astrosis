@@ -12,8 +12,10 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
 import numpy as np
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sgp4.api import Satrec, jday
 
@@ -129,6 +131,47 @@ async def health():
         "cuda_device": info.get("cuda_device"),
         "ok": True,
     }
+
+
+@app.get("/api/public/tle")
+async def proxy_tle(group: str = "active"):
+    FALLBACK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "active.txt")
+    sources = []
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=tle"
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                sources.append(("celestrak", resp.text))
+    except Exception:
+        pass
+
+    space_track_user = os.environ.get("SPACETRACK_USER")
+    space_track_pass = os.environ.get("SPACETRACK_PASS")
+    if space_track_user and space_track_pass:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                login = await client.post("https://www.space-track.org/ajaxauth/login", data={
+                    "identity": space_track_user, "password": space_track_pass,
+                })
+                if login.status_code == 200:
+                    url = f"https://www.space-track.org/basicspaceradar/query/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle"
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        sources.append(("spacetrack", resp.text))
+        except Exception:
+            pass
+
+    if os.path.exists(FALLBACK_PATH):
+        with open(FALLBACK_PATH) as f:
+            sources.append(("bundled", f.read()))
+
+    if not sources:
+        return PlainTextResponse("# No TLE sources available\n", status_code=503)
+
+    source_name, text = sources[0]
+    return PlainTextResponse(text)
 
 
 @app.get("/api/constellation")
@@ -393,6 +436,16 @@ async def hohmann(req: HohmannReq):
 
 
 if __name__ == "__main__":
+    import signal
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server = uvicorn.Server(config)
+
+    def _shutdown(sig, frame):
+        server.should_exit = True
+
+    signal.signal(signal.SIGINT, _shutdown)
+    signal.signal(signal.SIGTERM, _shutdown)
+
+    server.run()

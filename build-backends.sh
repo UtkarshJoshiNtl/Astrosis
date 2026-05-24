@@ -27,12 +27,17 @@ cd cpp/build
 
 # Configure with CMake
 echo "Configuring with CMake..."
+PYBIND11_DIR=$(python3 -m pybind11 --cmakedir 2>/dev/null || echo "")
+CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release"
+if [ -n "$PYBIND11_DIR" ]; then
+    CMAKE_ARGS="$CMAKE_ARGS -Dpybind11_DIR=$PYBIND11_DIR"
+fi
 if command -v nvcc &> /dev/null; then
     echo "CUDA detected - enabling CUDA support"
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=ON
+    cmake .. $CMAKE_ARGS -DUSE_CUDA=ON
 else
     echo "CUDA not found - building CPU-only backend"
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=OFF
+    cmake .. $CMAKE_ARGS -DUSE_CUDA=OFF
 fi
 
 # Build
