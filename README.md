@@ -156,7 +156,9 @@ python main.py fetch --id 25544  # Fetch ISS TLE
 python main.py passes --id 25544 --lat 40.7 --lon -74.0  # NYC passes
 
 # 5. Launch visualization
-python frontend/main.py  # Opens browser
+pnpm dev  # Starts React frontend (opens browser at http://localhost:5173)
+# In a separate terminal, run the backend:
+python server.py  # Starts FastAPI backend (http://localhost:8000)
 ```
 
 ### Python API Example

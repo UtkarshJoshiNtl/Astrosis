@@ -3,7 +3,6 @@
 *.log
 
 # C++/CMake build artifacts
-backend/cpp/build/
 cpp/build/
 *.so
 *.dylib

@@ -300,7 +300,51 @@ class ConjReq(BaseModel):
 
 @app.post("/api/conjunctions")
 async def conjunctions(req: ConjReq):
-    return []
+    from engine.core.accelerator import propagate_batch
+    from engine.core.conjunction import ConjunctionDetector
+    
+    # Load states for all requested satellites
+    sat_states = []
+    sat_ids = []
+    for norad in req.norads:
+        try:
+            state, tle, epoch = _load_tle_state(norad)
+            sat_states.append(state)
+            sat_ids.append(norad)
+        except HTTPException:
+            # Skip satellites not found in catalog
+            continue
+    
+    if len(sat_states) < 2:
+        return []
+    
+    # Detect conjunctions
+    detector = ConjunctionDetector()
+    warnings = detector.detect(
+        sat_states=sat_states,
+        debris_states=sat_states,  # Self-conjunction detection among the set
+        lookahead_s=req.hours * 3600,
+        step_s=60.0,
+        mjd0=0.0,
+    )
+    
+    # Format response to match frontend ConjunctionPair interface
+    results = []
+    for w in warnings:
+        # Skip self-conjunctions (same satellite)
+        if sat_ids[w.sat_id] == sat_ids[w.debris_id]:
+            continue
+        
+        results.append({
+            "a": sat_ids[w.sat_id],
+            "b": sat_ids[w.debris_id],
+            "tca": (datetime.now(timezone.utc) + timedelta(seconds=w.time_to_closest_approach)).isoformat(),
+            "miss_km": w.current_distance,
+            "rel_vel_kms": math.sqrt(sum(v*v for v in w.relative_velocity)),
+            "pc": w.pc if w.pc_result.computed else None,
+        })
+    
+    return results
 
 
 class HohmannReq(BaseModel):

@@ -104,9 +104,6 @@ def test_rk4_fourth_order_convergence():
     """
     Halving the step size must reduce global error by ≥ 14× (expect 16× for RK4).
     Proves the implementation is genuinely 4th order, not accidentally lower.
-
-    This test would have caught the old conjunction.cpp bug where states were
-    re-propagated from t=0 on each iteration (effectively 1st order in time).
     """
     state = tuple(_circular_orbit(400.0))
     total_time = 7200.0
@@ -172,8 +169,8 @@ def test_conjunction_detects_advisory():
 def test_conjunction_finds_converging_pairs():
     """
     Two objects starting 100 km apart but moving toward each other must be
-    detected. This was the broad-phase bug: initial-distance culling at 50 km
-    missed pairs that start far apart but intersect within lookahead.
+    detected. Ensures broad-phase culling doesn't miss pairs that start far
+    apart but intersect within lookahead.
     """
     sat = [RE + 400.0, 0.0, 0.0, 0.0, 7.66, 0.0]
     deb = [RE + 400.0 + 100.0, 0.0, 0.0, -0.75, 7.66, 0.0]
@@ -271,8 +268,7 @@ def test_python_conjunction_scans_partial_final_window(monkeypatch):
 def test_fuel_non_default_load():
     """
     FuelTracker initialized with 25 kg must report 100% (not 50%) at init.
-    This was the hardcoded INITIAL_FUEL bug: fuel_percentage() divided by the
-    constant (50 kg) instead of the instance's initial value.
+    Ensures fuel_percentage() uses the instance's initial value, not a constant.
     """
     tracker = FuelTracker(initial_fuel=25.0, dry_mass=500.0)
     pct = tracker.fuel_percentage()
@@ -296,7 +292,7 @@ def test_fuel_depletion_tracking():
 def test_batch_matches_single():
     """
     Batch propagation (C++ or NumPy) must match serial single propagation
-    to double precision. This catches bugs in the batch loop indexing.
+    to double precision. Ensures correct batch loop indexing.
     """
     sats = [
         _circular_orbit(400.0),
@@ -320,15 +316,9 @@ def test_batch_matches_single():
 
 def test_cpp_incremental_propagation():
     """
-    Regression test for the alpha-branch conjunction.cpp fix.
-    Two-step propagation must equal one propagation with 2x dt
-    only approximately (RK4 is not self-consistent at different dt),
-    but a state propagated from t=0 twice with dt should closely match
-    propagation with 2*dt at the orbit scale.
-
-    More specifically: propagating A→B→C (two steps dt) must give a different
-    result from propagating A at 0 twice with dt=10s (the OLD bug where each
-    iteration re-started from the initial state).
+    Regression test for incremental propagation correctness.
+    Two-step propagation must differ from re-propagating from the initial state,
+    ensuring each step uses the previous state's output.
     """
     state = tuple(_circular_orbit(400.0))
     dt = 10.0
@@ -337,16 +327,15 @@ def test_cpp_incremental_propagation():
     s1 = rk4_step(state, dt)
     s2 = rk4_step(s1, dt)
 
-    # What the old buggy code did: propagate from state with dt each time
-    # (effectively state → dt → state → dt instead of A → B → C)
-    old_buggy_s1 = rk4_step(state, dt)
-    old_buggy_s2 = rk4_step(state, dt)  # <- re-propagating from initial!
+    # Incorrect: re-propagating from initial state each time
+    incorrect_s1 = rk4_step(state, dt)
+    incorrect_s2 = rk4_step(state, dt)
 
-    # s2 should differ from old_buggy_s2 because old bug always returned same result
-    diff = math.sqrt(sum((s2[k] - old_buggy_s2[k])**2 for k in range(3)))
+    # s2 should differ from incorrect_s2
+    diff = math.sqrt(sum((s2[k] - incorrect_s2[k])**2 for k in range(3)))
     assert diff > 0.001, (
         "Incremental vs re-propagated states are identical. "
-        "This would indicate the old bug is still present."
+        "Propagation may not be using the previous state correctly."
     )
 
 
