@@ -142,23 +142,24 @@ CUDA 12.x + CMake 3.15+
 # 1. Clone
 git clone https://github.com/your-org/astrosis.git && cd astrosis
 
-# 2. Install Python
+# 2. Create virtual environment (required for Python 3.11+ on Debian/Ubuntu)
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# 3. Install Python dependencies
 pip install -r requirements.txt
+pnpm install  # Install Node dependencies
 
-# 3. Build C++/CUDA backends (optional but ~500× faster)
-cd cpp && mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=ON
-make -j$(nproc)
-cd ../..
+# 4. Build C++/CUDA backends (optional but ~500× faster)
+./build-backends.sh
 
-# 4. Test propagation
-python main.py fetch --id 25544  # Fetch ISS TLE
-python main.py passes --id 25544 --lat 40.7 --lon -74.0  # NYC passes
+# 5. Quick start
+./run.sh
+# Select option 1 for CLI mode or option 2 for Frontend + Backend
 
-# 5. Launch visualization
-pnpm dev  # Starts React frontend (opens browser at http://localhost:5173)
-# In a separate terminal, run the backend:
-python server.py  # Starts FastAPI backend (http://localhost:8000)
+# Manual startup:
+# CLI: python3 main.py fetch --id 25544
+# Frontend + Backend: Run ./run.sh and select option 2
 ```
 
 ### Python API Example

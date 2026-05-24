@@ -2,6 +2,12 @@
 # Astrosis run script
 # Choose between CLI interface or full frontend+backend setup
 
+# Activate virtual environment if it exists
+if [ -d "venv" ]; then
+    echo "Activating virtual environment..."
+    source venv/bin/activate
+fi
+
 echo "Astrosis Orbital Mechanics Engine"
 echo "=================================="
 echo ""
@@ -14,8 +20,8 @@ read -p "Enter choice [1-2]: " choice
 case $choice in
     1)
         echo "Starting CLI mode..."
-        echo "Use commands like: python3 main.py fetch --id 25544"
-        echo "                    python3 main.py passes --id 25544 --lat 40.7 --lon -74.0"
+        echo "Use commands like: python main.py fetch --id 25544"
+        echo "                    python main.py passes --id 25544 --lat 40.7 --lon -74.0"
         bash
         ;;
     2)
@@ -28,7 +34,7 @@ case $choice in
         echo ""
         
         # Start backend in background
-        python3 server.py &
+        python server.py &
         BACKEND_PID=$!
         
         # Wait a moment for backend to start

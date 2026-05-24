@@ -12,6 +12,15 @@ if ! command -v cmake &> /dev/null; then
     exit 1
 fi
 
+# Install pybind11 if not available
+if ! python3 -c "import pybind11" 2>/dev/null; then
+    echo "Installing pybind11..."
+    pip3 install pybind11 --user || {
+        echo "Error: Failed to install pybind11. Try: pip3 install pybind11"
+        exit 1
+    }
+fi
+
 # Create build directory
 mkdir -p cpp/build
 cd cpp/build
