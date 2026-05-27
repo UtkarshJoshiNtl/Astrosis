@@ -17,7 +17,11 @@ def _julian_date(dt: datetime) -> float:
     """Return the Julian Date for a naïve UTC datetime."""
     y = dt.year
     m = dt.month
-    d = dt.day + (dt.hour + dt.minute / 60.0 + (dt.second + dt.microsecond / 1e6) / 3600.0) / 24.0
+    d = (
+        dt.day
+        + (dt.hour + dt.minute / 60.0 + (dt.second + dt.microsecond / 1e6) / 3600.0)
+        / 24.0
+    )
     if m <= 2:
         y -= 1
         m += 12
@@ -47,12 +51,7 @@ def _equation_of_equinoxes(dt: datetime) -> float:
         + 0.21 * np.sin(2.0 * omega)
     )
 
-    eps0_arcsec = (
-        84381.448
-        - 46.8150 * t
-        - 0.00059 * t * t
-        + 0.001813 * t * t * t
-    )
+    eps0_arcsec = 84381.448 - 46.8150 * t - 0.00059 * t * t + 0.001813 * t * t * t
     eps_arcsec = eps0_arcsec + (
         9.20 * np.cos(omega)
         + 0.57 * np.cos(2.0 * l)
@@ -78,9 +77,7 @@ def _teme_to_eci(r_teme, v_teme, dt: datetime):
     theta = _equation_of_equinoxes(dt)
     c = np.cos(theta)
     s = np.sin(theta)
-    rot = np.array([[c, -s, 0.0],
-                    [s,  c, 0.0],
-                    [0.0, 0.0, 1.0]])
+    rot = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
 
     r_eci = rot @ r
 
@@ -104,7 +101,7 @@ def report_passes(
     sat_area: float = 10.0,
     sat_mass: float = 1000.0,
     sat_cd: float = 2.2,
-    ingestor=None,   # dependency injection — pass a TLEIngestor or mock; defaults to global singleton
+    ingestor=None,  # dependency injection — pass a TLEIngestor or mock; defaults to global singleton
 ):
     """
     Predict satellite passes for a ground station.
@@ -123,8 +120,11 @@ def report_passes(
     """
     if ingestor is None:
         from ..io.data import tle_ingestor as _tle_ingestor
+
         ingestor = _tle_ingestor
-    satellites = ingestor.get_satellites(satellite_id=str(norad_id), force_refresh=False)
+    satellites = ingestor.get_satellites(
+        satellite_id=str(norad_id), force_refresh=False
+    )
     if not satellites:
         return {"error": "Satellite not found."}
 
@@ -132,12 +132,17 @@ def report_passes(
 
     # --- Build SGP4 record ---
     from sgp4.api import Satrec, jday
+
     satrec = Satrec.twoline2rv(tle_data["line1"], tle_data["line2"])
 
     # Use sgp4.api.jday for a correct Julian date split (avoids accumulated float error)
     jd, jdfrac = jday(
-        start_dt.year, start_dt.month, start_dt.day,
-        start_dt.hour, start_dt.minute, start_dt.second + start_dt.microsecond / 1e6,
+        start_dt.year,
+        start_dt.month,
+        start_dt.day,
+        start_dt.hour,
+        start_dt.minute,
+        start_dt.second + start_dt.microsecond / 1e6,
     )
     err, r_teme, v_teme = satrec.sgp4(jd, jdfrac)
 
@@ -179,13 +184,15 @@ def report_passes(
                 current_pass["max_elevation"] = el_deg
             if visible:
                 current_pass["visible"] = True
-            current_pass["points"].append({
-                "time": time_sim.isoformat(),
-                "az_deg": float(np.degrees(az)),
-                "el_deg": el_deg,
-                "range_km": float(rng),
-                "is_illuminated": visible,
-            })
+            current_pass["points"].append(
+                {
+                    "time": time_sim.isoformat(),
+                    "az_deg": float(np.degrees(az)),
+                    "el_deg": el_deg,
+                    "range_km": float(rng),
+                    "is_illuminated": visible,
+                }
+            )
         else:
             if current_pass is not None:
                 current_pass["end_time"] = time_sim.isoformat()

@@ -33,7 +33,11 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
   }
 
   if (!selectedId) {
-    return <div className="p-4 text-[11px] text-muted-foreground">Select a satellite to plan a maneuver.</div>;
+    return (
+      <div className="p-4 text-[11px] text-muted-foreground">
+        Select a satellite to plan a maneuver.
+      </div>
+    );
   }
 
   const insufficientProp = result?.fuel_remaining_kg != null && result.fuel_remaining_kg < 0;
@@ -46,25 +50,48 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
         <div className="space-y-1.5">
           <div>
             <span className="text-muted-foreground">r₁ (km)</span>
-            <input className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground" value={r1} onChange={(e) => setR1(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              value={r1}
+              onChange={(e) => setR1(e.target.value)}
+            />
           </div>
           <div>
             <span className="text-muted-foreground">r₂ (km)</span>
-            <input className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground" value={r2} onChange={(e) => setR2(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              value={r2}
+              onChange={(e) => setR2(e.target.value)}
+            />
           </div>
           <div>
             <span className="text-muted-foreground">Isp (s)</span>
-            <input className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground" value={isp} onChange={(e) => setIsp(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              value={isp}
+              onChange={(e) => setIsp(e.target.value)}
+            />
           </div>
           <div>
             <span className="text-muted-foreground">Dry mass (kg)</span>
-            <input className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground" value={dryMass} onChange={(e) => setDryMass(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              value={dryMass}
+              onChange={(e) => setDryMass(e.target.value)}
+            />
           </div>
           <div>
             <span className="text-muted-foreground">Prop mass (kg)</span>
-            <input className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground" value={propMass} onChange={(e) => setPropMass(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              value={propMass}
+              onChange={(e) => setPropMass(e.target.value)}
+            />
           </div>
-          <button onClick={calculate} className="w-full hairline px-2 py-1 text-foreground hover:bg-[var(--surface-2)]">
+          <button
+            onClick={calculate}
+            className="w-full hairline px-2 py-1 text-foreground hover:bg-[var(--surface-2)]"
+          >
             CALCULATE
           </button>
         </div>
@@ -72,7 +99,9 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
 
       <div className="flex-1 min-w-0 overflow-auto">
         {insufficientProp && (
-          <div className="text-[var(--destructive)] font-medium mb-2">⚠ INSUFFICIENT PROPELLANT</div>
+          <div className="text-[var(--destructive)] font-medium mb-2">
+            ⚠ INSUFFICIENT PROPELLANT
+          </div>
         )}
 
         {result && !insufficientProp && (
@@ -83,7 +112,10 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
                 <Row label="Δv₁ (periapsis burn)" value={`+${result.dv1_kms.toFixed(4)} km/s`} />
                 <Row label="Δv₂ (apoapsis burn)" value={`+${result.dv2_kms.toFixed(4)} km/s`} />
                 <Row label="Δv total" value={`+${result.dv_total_kms.toFixed(4)} km/s`} />
-                <Row label="Transfer time" value={`${(result.transfer_time_s / 3600).toFixed(1)} h`} />
+                <Row
+                  label="Transfer time"
+                  value={`${(result.transfer_time_s / 3600).toFixed(1)} h`}
+                />
               </div>
             </div>
 
@@ -92,24 +124,28 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
                 <div className="tag mb-1">PROPELLANT BUDGET</div>
                 <div className="surface-2 hairline">
                   <Row label="Fuel used" value={`${result.fuel_used_kg.toFixed(1)} kg`} />
-                  <Row label="Fuel remaining" value={`${result.fuel_remaining_kg?.toFixed(1) ?? "—"} kg`} />
+                  <Row
+                    label="Fuel remaining"
+                    value={`${result.fuel_remaining_kg?.toFixed(1) ?? "—"} kg`}
+                  />
                 </div>
-                {result.fuel_remaining_kg != null && (() => {
-                  const total = result.fuel_used_kg + result.fuel_remaining_kg;
-                  const usedPct = total > 0 ? (result.fuel_used_kg / total) * 100 : 0;
-                  return (
-                    <div className="mt-1 h-3 surface-2 hairline relative">
-                      <div
-                        className="absolute inset-y-0 left-0 bg-[var(--primary)]"
-                        style={{ width: `${Math.min(100, usedPct)}%` }}
-                      />
-                      <div
-                        className="absolute inset-y-0 bg-[var(--border)]"
-                        style={{ left: `${Math.min(100, usedPct)}%`, right: 0 }}
-                      />
-                    </div>
-                  );
-                })()}
+                {result.fuel_remaining_kg != null &&
+                  (() => {
+                    const total = result.fuel_used_kg + result.fuel_remaining_kg;
+                    const usedPct = total > 0 ? (result.fuel_used_kg / total) * 100 : 0;
+                    return (
+                      <div className="mt-1 h-3 surface-2 hairline relative">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-[var(--primary)]"
+                          style={{ width: `${Math.min(100, usedPct)}%` }}
+                        />
+                        <div
+                          className="absolute inset-y-0 bg-[var(--border)]"
+                          style={{ left: `${Math.min(100, usedPct)}%`, right: 0 }}
+                        />
+                      </div>
+                    );
+                  })()}
               </div>
             )}
 
@@ -117,15 +153,16 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
               <div className="tag mb-1">NEW ORBIT</div>
               <div className="surface-2 hairline">
                 <Row label="Semi-major axis" value={`${result.r2_km.toFixed(0)} km`} />
-                <Row label="Period" value={`${((2 * Math.PI * Math.sqrt((result.r2_km ** 3) / 398600.4418)) / 3600).toFixed(2)} h`} />
+                <Row
+                  label="Period"
+                  value={`${((2 * Math.PI * Math.sqrt(result.r2_km ** 3 / 398600.4418)) / 3600).toFixed(2)} h`}
+                />
               </div>
             </div>
           </div>
         )}
 
-        {!result && (
-          <div className="text-muted-foreground">Set parameters and calculate.</div>
-        )}
+        {!result && <div className="text-muted-foreground">Set parameters and calculate.</div>}
       </div>
     </div>
   );

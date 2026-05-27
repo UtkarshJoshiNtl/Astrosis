@@ -33,7 +33,9 @@ function ManeuverPage() {
     if (!isOnline) {
       setResult(hohmannLocal(input));
     } else {
-      hohmann(input).then(setResult).catch(() => setResult(hohmannLocal(input)));
+      hohmann(input)
+        .then(setResult)
+        .catch(() => setResult(hohmannLocal(input)));
     }
   }
 
@@ -44,25 +46,48 @@ function ManeuverPage() {
           <h2 className="tag mb-2">Hohmann Transfer</h2>
           <div>
             <label className="text-muted-foreground">Source radius (km)</label>
-            <input className="w-full hairline bg-transparent px-2 py-1 num text-foreground" value={r1} onChange={(e) => setR1(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              value={r1}
+              onChange={(e) => setR1(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-muted-foreground">Target radius (km)</label>
-            <input className="w-full hairline bg-transparent px-2 py-1 num text-foreground" value={r2} onChange={(e) => setR2(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              value={r2}
+              onChange={(e) => setR2(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-muted-foreground">Isp (s)</label>
-            <input className="w-full hairline bg-transparent px-2 py-1 num text-foreground" value={isp} onChange={(e) => setIsp(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              value={isp}
+              onChange={(e) => setIsp(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-muted-foreground">Dry mass (kg)</label>
-            <input className="w-full hairline bg-transparent px-2 py-1 num text-foreground" value={dryMass} onChange={(e) => setDryMass(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              value={dryMass}
+              onChange={(e) => setDryMass(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-muted-foreground">Propellant mass (kg)</label>
-            <input className="w-full hairline bg-transparent px-2 py-1 num text-foreground" value={propMass} onChange={(e) => setPropMass(e.target.value)} />
+            <input
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              value={propMass}
+              onChange={(e) => setPropMass(e.target.value)}
+            />
           </div>
-          <button onClick={calculate} className="w-full hairline px-3 py-1.5 text-foreground hover:bg-[var(--surface-2)]">
+          <button
+            onClick={calculate}
+            className="w-full hairline px-3 py-1.5 text-foreground hover:bg-[var(--surface-2)]"
+          >
             Calculate
           </button>
           <div className="text-[10px] text-muted-foreground italic">
@@ -77,7 +102,10 @@ function ManeuverPage() {
                 <Row label="Δv₁ (periapsis)" value={`${result.dv1_kms.toFixed(4)} km/s`} />
                 <Row label="Δv₂ (apoapsis)" value={`${result.dv2_kms.toFixed(4)} km/s`} />
                 <Row label="Δv total" value={`${result.dv_total_kms.toFixed(4)} km/s`} />
-                <Row label="Transfer time" value={`${(result.transfer_time_s / 3600).toFixed(1)} h`} />
+                <Row
+                  label="Transfer time"
+                  value={`${(result.transfer_time_s / 3600).toFixed(1)} h`}
+                />
                 {result.fuel_used_kg != null && (
                   <Row label="Fuel used" value={`${result.fuel_used_kg.toFixed(1)} kg`} />
                 )}
@@ -99,7 +127,10 @@ function ManeuverPage() {
                       const total = result.fuel_used_kg! + result.fuel_remaining_kg!;
                       const pct = total > 0 ? (result.fuel_remaining_kg! / total) * 100 : 0;
                       return (
-                        <div className="absolute inset-y-0 left-0 bg-[var(--primary)]" style={{ width: `${100 - pct}%` }} />
+                        <div
+                          className="absolute inset-y-0 left-0 bg-[var(--primary)]"
+                          style={{ width: `${100 - pct}%` }}
+                        />
                       );
                     })()}
                   </div>

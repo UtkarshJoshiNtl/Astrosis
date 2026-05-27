@@ -63,11 +63,7 @@ function ObjectPage() {
               />
             </div>
             <div className="w-[380px] hairline-l surface min-h-0 overflow-auto">
-              <GroundTrack
-                sats={satellites}
-                selectedId={noradId}
-                when={when}
-              />
+              <GroundTrack sats={satellites} selectedId={noradId} when={when} />
             </div>
           </div>
           <div className="h-[240px] hairline-t surface flex flex-col">

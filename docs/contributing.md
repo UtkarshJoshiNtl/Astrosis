@@ -52,6 +52,7 @@ python -m pytest tests/ --cov=engine --cov-report=html
 ```
 
 **Test categories:**
+
 - `tests/test_core.py` — Physics kernels (RK4, forces, energy conservation)
 - `tests/test_geo.py` — Coordinate transformations, time systems
 - `tests/test_conjunction.py` — Collision detection, TCA refinement
@@ -85,6 +86,7 @@ python validation/test_monte_carlo.py --cases 100 --hours 72
 ```
 
 **Expected outputs:**
+
 - Energy conservation: < 1e-7 relative drift
 - J2 precession: < 0.03°/day error vs. analytical
 - Convergence: Exactly 4th-order (error ratio ≈ 16)
@@ -106,6 +108,7 @@ python scripts/profile_cuda.py --kernel prop_soa --satellites 1000
 ```
 
 **Performance budgets (approximate):**
+
 - 1,000 satellite, 24h propagation (CUDA): 46.9 ± 2.1 ms
 - 400×400 conjunction screening (CUDA): 564 ± 18 ms
 - Deviations > 10% warrant investigation
@@ -126,15 +129,15 @@ Example:
 ```python
 def propagate(initial_state: np.ndarray, timestep: float, hours: int) -> np.ndarray:
     """Propagate orbital state using RK4 integration.
-    
+
     Args:
         initial_state: 6D state vector [x, y, z, vx, vy, vz] in ECI, meters/sec
         timestep: Integration step in seconds
         hours: Propagation duration in hours
-        
+
     Returns:
         Trajectory: [steps × 6] array of state vectors
-        
+
     Raises:
         ValueError: If timestep or hours invalid
     """
@@ -160,6 +163,7 @@ def propagate(initial_state: np.ndarray, timestep: float, hours: int) -> np.ndar
 - [ ] Albedo and infrared radiation pressure
 
 **How to add:**
+
 1. Implement acceleration function
 2. Register in `ComputeAccel()` dispatcher
 3. Add unit test in `tests/test_core.py`
@@ -212,11 +216,13 @@ def propagate(initial_state: np.ndarray, timestep: float, hours: int) -> np.ndar
 ## Pull Request Workflow
 
 1. **Fork & branch**
+
    ```bash
    git checkout -b feature/my-contribution
    ```
 
 2. **Develop & test**
+
    ```bash
    # Make changes, add tests
    pytest tests/  # Run full suite
@@ -225,6 +231,7 @@ def propagate(initial_state: np.ndarray, timestep: float, hours: int) -> np.ndar
    ```
 
 3. **Commit with clear messages**
+
    ```bash
    git commit -m "Add [feature]: description
 
@@ -234,6 +241,7 @@ def propagate(initial_state: np.ndarray, timestep: float, hours: int) -> np.ndar
    ```
 
 4. **Push & create PR**
+
    ```bash
    git push origin feature/my-contribution
    # Open PR on GitHub with description
@@ -251,27 +259,32 @@ def propagate(initial_state: np.ndarray, timestep: float, hours: int) -> np.ndar
 ### Bug Reports
 
 Include:
+
 - **Minimal reproduction case** (code snippet)
 - **Expected vs. actual behavior**
 - **Environment** (OS, Python version, CUDA version if applicable)
 - **Error message** (full traceback)
 
 Example:
-```markdown
+
+````markdown
 ### Energy Conservation Test Failing on RTX 3060
 
 **Actual:** Energy drift = 1e-5 (too high)
 **Expected:** < 1e-7
 
 **Reproduction:**
+
 ```python
 sat = load_tle("25544")
 traj = propagate(sat, hours=24, dt=10)
 energy_error = check_energy_conservation(traj)
 assert energy_error < 1e-7  # Fails with 1.2e-5
 ```
+````
 
 **Environment:** RTX 3060, CUDA 12.4, Python 3.11
+
 ```
 
 ### Feature Requests
@@ -310,3 +323,4 @@ Contributors are recognized in release notes for each version and the GitHub con
 ---
 
 **Thank you for improving Astrosis!**
+```

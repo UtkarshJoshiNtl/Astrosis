@@ -11,7 +11,12 @@ export const Route = createFileRoute("/conjunctions")({
 
 function PcBand({ pc }: { pc?: number }) {
   if (pc == null) return <span className="text-muted-foreground">—</span>;
-  const level = pc > 1e-4 ? "text-[var(--destructive)]" : pc > 1e-6 ? "text-[var(--warn)]" : "text-muted-foreground";
+  const level =
+    pc > 1e-4
+      ? "text-[var(--destructive)]"
+      : pc > 1e-6
+        ? "text-[var(--warn)]"
+        : "text-muted-foreground";
   return <span className={`num ${level}`}>{pc.toExponential(2)}</span>;
 }
 
@@ -24,7 +29,8 @@ function ConjunctionsPage() {
 
   const { data: pairs, isFetching } = useQuery<ConjunctionPair[]>({
     queryKey: ["conjunctions", norads.join(",")],
-    queryFn: ({ signal }) => conjunctions({ norads: norads.slice(0, 100), hours: 24, threshold_km: 5 }, signal),
+    queryFn: ({ signal }) =>
+      conjunctions({ norads: norads.slice(0, 100), hours: 24, threshold_km: 5 }, signal),
     enabled: norads.length > 0,
     refetchOnWindowFocus: false,
     staleTime: 60000,
@@ -54,16 +60,28 @@ function ConjunctionsPage() {
             </thead>
             <tbody>
               {pairs?.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No conjunctions detected</td></tr>
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No conjunctions detected
+                  </td>
+                </tr>
               )}
               {pairs?.map((p, i) => (
                 <tr key={i} className="hairline-b hover:bg-[var(--surface-2)]">
                   <td className="px-3 py-1.5">{p.a}</td>
                   <td className="px-3 py-1.5">{p.b}</td>
-                  <td className="text-right px-3 py-1.5 font-mono">{new Date(p.tca).toISOString().replace("T", " ").slice(0, 19)}</td>
-                  <td className={`text-right px-3 py-1.5 ${p.miss_km < 1 ? "text-[var(--destructive)]" : p.miss_km < 5 ? "text-[var(--warn)]" : ""}`}>{p.miss_km.toFixed(3)}</td>
+                  <td className="text-right px-3 py-1.5 font-mono">
+                    {new Date(p.tca).toISOString().replace("T", " ").slice(0, 19)}
+                  </td>
+                  <td
+                    className={`text-right px-3 py-1.5 ${p.miss_km < 1 ? "text-[var(--destructive)]" : p.miss_km < 5 ? "text-[var(--warn)]" : ""}`}
+                  >
+                    {p.miss_km.toFixed(3)}
+                  </td>
                   <td className="text-right px-3 py-1.5">{p.rel_vel_kms.toFixed(3)}</td>
-                  <td className="text-right px-3 py-1.5"><PcBand pc={p.pc} /></td>
+                  <td className="text-right px-3 py-1.5">
+                    <PcBand pc={p.pc} />
+                  </td>
                 </tr>
               ))}
             </tbody>

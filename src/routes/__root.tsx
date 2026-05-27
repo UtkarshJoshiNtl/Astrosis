@@ -73,10 +73,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Astrosis — SSA Console" },
-      { name: "description", content: "GPU-accelerated orbital simulation and SSA console for the Astrosis engine." },
+      {
+        name: "description",
+        content: "GPU-accelerated orbital simulation and SSA console for the Astrosis engine.",
+      },
       { name: "author", content: "Astrosis" },
       { property: "og:title", content: "Astrosis — SSA Console" },
-      { property: "og:description", content: "GPU-accelerated orbital simulation and SSA console." },
+      {
+        property: "og:description",
+        content: "GPU-accelerated orbital simulation and SSA console.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },

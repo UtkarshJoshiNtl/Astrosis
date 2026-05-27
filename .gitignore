@@ -45,6 +45,8 @@ coverage/
 
 # Generated
 .wrangler/
+.output/
+.vinxi/
 
 # Windows ADS zone identifiers
 *:Zone.Identifier

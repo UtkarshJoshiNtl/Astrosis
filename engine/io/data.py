@@ -11,7 +11,9 @@ __all__ = ["TLEIngestor", "tle_ingestor"]
 logger = logging.getLogger(__name__)
 
 LOCAL_CACHE_DIR = str(pathlib.Path.home() / ".cache" / "astrosis" / "tle")
-BUNDLED_CACHE = str(pathlib.Path(__file__).resolve().parent.parent.parent / "data" / "active.txt")
+BUNDLED_CACHE = str(
+    pathlib.Path(__file__).resolve().parent.parent.parent / "data" / "active.txt"
+)
 CELESTRAK_API_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 SPACETRACK_TLE_URL = "https://www.space-track.org/basicspaceradar/query/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle"
@@ -36,7 +38,9 @@ class TLEIngestor:
         age = datetime.now() - datetime.fromtimestamp(mtime)
         return age <= timedelta(hours=max_age_hours)
 
-    def _try_fetch(self, url: str, params: dict, timeout: float = 15.0) -> Optional[str]:
+    def _try_fetch(
+        self, url: str, params: dict, timeout: float = 15.0
+    ) -> Optional[str]:
         try:
             with httpx.Client(timeout=timeout) as client:
                 resp = client.get(url, params=params)
@@ -53,7 +57,9 @@ class TLEIngestor:
             return None
         try:
             with httpx.Client(timeout=10.0) as client:
-                login = client.post(SPACETRACK_LOGIN_URL, data={"identity": user, "password": pwd})
+                login = client.post(
+                    SPACETRACK_LOGIN_URL, data={"identity": user, "password": pwd}
+                )
                 if login.status_code != 200:
                     return None
                 resp = client.get(SPACETRACK_TLE_URL)
@@ -63,7 +69,9 @@ class TLEIngestor:
             logger.warning(f"Space-Track fetch failed: {e}")
         return None
 
-    def fetch_tle_data(self, satellite_id: Optional[str] = None, force_refresh: bool = False) -> List[str]:
+    def fetch_tle_data(
+        self, satellite_id: Optional[str] = None, force_refresh: bool = False
+    ) -> List[str]:
         cache_path = self._get_cache_path(satellite_id)
         if not force_refresh and self._is_cache_valid(cache_path):
             logger.info(f"Loading TLEs from cache: {cache_path}")
@@ -111,7 +119,7 @@ class TLEIngestor:
         for ch in line[:68]:
             if ch.isdigit():
                 checksum += int(ch)
-            elif ch == '-':
+            elif ch == "-":
                 checksum += 1
         return checksum % 10 == int(line[68])
 
@@ -124,12 +132,14 @@ class TLEIngestor:
                 line1 = lines[i + 1].strip()
                 line2 = lines[i + 2].strip()
 
-                if not (self._tle_checksum_valid(line1) and self._tle_checksum_valid(line2)):
+                if not (
+                    self._tle_checksum_valid(line1) and self._tle_checksum_valid(line2)
+                ):
                     logger.warning(f"Skipping TLE '{name}': invalid checksum")
                     i += 3
                     continue
 
-                if not (line1.startswith('1 ') and line2.startswith('2 ')):
+                if not (line1.startswith("1 ") and line2.startswith("2 ")):
                     logger.warning(f"Skipping TLE block at {i}: bad line markers")
                     i += 1
                     continue
@@ -140,24 +150,32 @@ class TLEIngestor:
                 if len(line1) > 32:
                     year_str = line1[18:20]
                     day_str = line1[20:32]
-                    year = 2000 + int(year_str) if int(year_str) < EPOCH_YEAR_CUTOFF else 1900 + int(year_str)
+                    year = (
+                        2000 + int(year_str)
+                        if int(year_str) < EPOCH_YEAR_CUTOFF
+                        else 1900 + int(year_str)
+                    )
                     day_of_year = float(day_str)
                     epoch = datetime(year, 1, 1) + timedelta(days=day_of_year - 1)
 
-                tle_entries.append({
-                    "norad_id": norad_id,
-                    "satellite_name": name,
-                    "line1": line1,
-                    "line2": line2,
-                    "epoch": epoch,
-                })
+                tle_entries.append(
+                    {
+                        "norad_id": norad_id,
+                        "satellite_name": name,
+                        "line1": line1,
+                        "line2": line2,
+                        "epoch": epoch,
+                    }
+                )
                 i += 3
             else:
                 i += 1
 
         return tle_entries
 
-    def get_satellites(self, satellite_id: Optional[str] = None, force_refresh: bool = False) -> List[dict]:
+    def get_satellites(
+        self, satellite_id: Optional[str] = None, force_refresh: bool = False
+    ) -> List[dict]:
         lines = self.fetch_tle_data(satellite_id, force_refresh)
         return self.parse_tle_lines(lines)
 

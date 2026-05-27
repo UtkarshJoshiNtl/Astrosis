@@ -37,16 +37,17 @@ ncu -i profile_prop.ncu-rep  # Interactive viewer
 
 **Optimal case (current implementation):**
 
-| Metric | Target | Typical | Note |
-|--------|--------|---------|------|
-| **SM Utilization** | 90–100% | 96% | Percentage of time SMs are busy |
-| **Achieved Occupancy** | 90–100% | 100% | Blocks per SM (max = 8 for 256 threads) |
-| **Registers/Thread** | < 100 | 8 | State vector only |
-| **Memory Throughput** | 80–95% | 87% | % of peak FP64 BW |
-| **Cache Hit Rate (L1)** | > 90% | 94% | SoA layout is cache-friendly |
-| **Warp Efficiency** | > 95% | 100% | No divergence = perfect efficiency |
+| Metric                  | Target  | Typical | Note                                    |
+| ----------------------- | ------- | ------- | --------------------------------------- |
+| **SM Utilization**      | 90–100% | 96%     | Percentage of time SMs are busy         |
+| **Achieved Occupancy**  | 90–100% | 100%    | Blocks per SM (max = 8 for 256 threads) |
+| **Registers/Thread**    | < 100   | 8       | State vector only                       |
+| **Memory Throughput**   | 80–95%  | 87%     | % of peak FP64 BW                       |
+| **Cache Hit Rate (L1)** | > 90%   | 94%     | SoA layout is cache-friendly            |
+| **Warp Efficiency**     | > 95%   | 100%    | No divergence = perfect efficiency      |
 
 **Interpretation:**
+
 - ✅ High SM utilization → kernel is compute-bound, not launch-bound
 - ✅ 100% occupancy → no register spilling
 - ✅ 87% memory throughput → excellent (SoA layout advantage)
@@ -65,13 +66,13 @@ conj = sim.conjunction_assessment(sats, threshold_km=1.0)
 
 **Expected for `k_conjunction`:**
 
-| Metric | Typical | Note |
-|--------|---------|------|
-| **SM Utilization** | 85% | Slightly lower due to shared memory synchronization |
-| **Achieved Occupancy** | 92% | 128 threads/block (register constraint) |
-| **Shared Memory/Block** | 16 KB | Distance cache (well within 96 KB limit) |
-| **Memory Throughput** | 71% | Lower than propagation (irregular access) |
-| **Cache Hit Rate** | 68% | Scattered pairwise access patterns |
+| Metric                  | Typical | Note                                                |
+| ----------------------- | ------- | --------------------------------------------------- |
+| **SM Utilization**      | 85%     | Slightly lower due to shared memory synchronization |
+| **Achieved Occupancy**  | 92%     | 128 threads/block (register constraint)             |
+| **Shared Memory/Block** | 16 KB   | Distance cache (well within 96 KB limit)            |
+| **Memory Throughput**   | 71%     | Lower than propagation (irregular access)           |
+| **Cache Hit Rate**      | 68%     | Scattered pairwise access patterns                  |
 
 ---
 
@@ -95,6 +96,7 @@ perf script | stackcollapse-perf.pl | flamegraph.pl > profile.svg
 ```
 
 **Expected hotspots:**
+
 - `ComputeAccel()`: 50–60% of time (force evaluation)
 - `RK4_step()`: 30–40% (integration loop)
 - Memory I/O: 10–15%
@@ -114,6 +116,7 @@ trajectory = sim.propagate([1000 satellites], hours=24)
 ```
 
 **Optimization targets:**
+
 - Thread load balancing: Check if all cores equally busy
 - False sharing: Cache line conflicts between threads
 - NUMA effects: Memory locality on multi-socket systems
@@ -134,6 +137,7 @@ watch -n 0.1 nvidia-smi
 ```
 
 **Memory breakdown (1,000 satellites):**
+
 - State vectors: 48 KB (6 elements × 8 bytes × 1,000)
 - Temporary buffers (RK4): 192 KB (4 stages)
 - Device pinned memory: ~10 MB (host-device transfer cache)
@@ -162,6 +166,7 @@ Roofline analysis determines whether kernels are compute-bound or memory-bound.
 ### Theory
 
 **Roofline model:**
+
 ```
 Peak Performance (GFLOP/s)
 
@@ -200,6 +205,7 @@ Arithmetic Intensity (AI):
 **Ridge point = Peak Performance / Memory Bandwidth**
 
 For RTX 2050:
+
 - Peak FP64 performance: 364 GFLOP/s
 - Memory bandwidth: ~350 GB/s
 - Ridge point: 364 / 350 ≈ **1.04 FLOP/byte**
@@ -207,6 +213,7 @@ For RTX 2050:
 ### Classification
 
 Since AI ≈ 2.1 FLOP/byte > Ridge point (1.04):
+
 - **Kernel is COMPUTE-BOUND**
 - Performance bottleneck: FPU throughput, not memory bandwidth
 - Optimization strategy: Increase ILP, reduce divergence, maximize FU utilization
@@ -220,6 +227,7 @@ python validation/cuda_roofline.py --kernel prop_soa --output roofline.png
 ```
 
 **Typical output:**
+
 ```
 Kernel Performance:
   Measured: 316 GFLOP/s (86% of peak)

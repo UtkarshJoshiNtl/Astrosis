@@ -14,7 +14,11 @@ class FuelTracker:
         return self.dry_mass + self.fuel_kg
 
     def fuel_percentage(self) -> float:
-        return (self.fuel_kg / self.initial_fuel_kg) * 100.0 if self.initial_fuel_kg > 0 else 0.0
+        return (
+            (self.fuel_kg / self.initial_fuel_kg) * 100.0
+            if self.initial_fuel_kg > 0
+            else 0.0
+        )
 
     def is_critical(self) -> bool:
         return self.fuel_percentage() < 10.0

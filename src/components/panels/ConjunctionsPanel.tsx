@@ -7,9 +7,10 @@ export function ConjunctionsPanel({ selectedId }: { selectedId: number | null })
   const constellation = useConstellation(30000);
   const allIds = (constellation.data?.satellites ?? []).map((s) => s.id);
 
-  const candidates = selectedId != null
-    ? [selectedId, ...allIds.filter((id) => id !== selectedId).slice(0, 49)]
-    : allIds.slice(0, 50);
+  const candidates =
+    selectedId != null
+      ? [selectedId, ...allIds.filter((id) => id !== selectedId).slice(0, 49)]
+      : allIds.slice(0, 50);
 
   const { data, isFetching } = useQuery<ConjunctionPair[]>({
     queryKey: ["conjunctions-panel", candidates.join(",")],
@@ -72,9 +73,7 @@ export function ConjunctionsPanel({ selectedId }: { selectedId: number | null })
                 <td className={`text-right px-2 py-1 num ${missColor(p.miss_km)}`}>
                   {p.miss_km.toFixed(3)}
                 </td>
-                <td className="text-right px-2 py-1 num">
-                  {p.rel_vel_kms.toFixed(2)} km/s
-                </td>
+                <td className="text-right px-2 py-1 num">{p.rel_vel_kms.toFixed(2)} km/s</td>
                 <td className={`text-right px-2 py-1 num ${pcColor(p.pc)}`}>
                   {p.pc != null ? p.pc.toExponential(2) : "—"}
                 </td>

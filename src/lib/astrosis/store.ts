@@ -41,11 +41,7 @@ if (typeof window !== "undefined") {
 }
 
 export function useBackendUrl(): [string, (u: string) => void] {
-  const url = useSyncExternalStore(
-    backendStore.subscribe,
-    backendStore.get,
-    () => DEFAULT_BACKEND,
-  );
+  const url = useSyncExternalStore(backendStore.subscribe, backendStore.get, () => DEFAULT_BACKEND);
   const set = (u: string) => {
     const trimmed = u.trim().replace(/\/$/, "") || DEFAULT_BACKEND;
     backendStore.set(trimmed);
@@ -100,24 +96,17 @@ export function useEpoch() {
     }
     return epochStore.get();
   };
-  return useSyncExternalStore(
-    epochStore.subscribe,
-    epochStore.get,
-    getServerSnapshot,
-  );
+  return useSyncExternalStore(epochStore.subscribe, epochStore.get, getServerSnapshot);
 }
 
 export const epochActions = {
   pause: () => epochStore.set((s) => ({ ...s, paused: true })),
   resume: () => epochStore.set((s) => ({ ...s, paused: false, wall_ms: Date.now() })),
-  toggle: () =>
-    epochStore.set((s) => ({ ...s, paused: !s.paused, wall_ms: Date.now() })),
-  setRate: (rate: number) =>
-    epochStore.set((s) => ({ ...s, rate, wall_ms: Date.now() })),
+  toggle: () => epochStore.set((s) => ({ ...s, paused: !s.paused, wall_ms: Date.now() })),
+  setRate: (rate: number) => epochStore.set((s) => ({ ...s, rate, wall_ms: Date.now() })),
   step: (seconds: number) =>
     epochStore.set((s) => ({ ...s, epoch_ms: s.epoch_ms + seconds * 1000 })),
-  resetToNow: () =>
-    epochStore.set((s) => ({ ...s, epoch_ms: Date.now(), wall_ms: Date.now() })),
+  resetToNow: () => epochStore.set((s) => ({ ...s, epoch_ms: Date.now(), wall_ms: Date.now() })),
 };
 
 // --- Selection ----------------------------------------------------
@@ -125,10 +114,6 @@ export const epochActions = {
 const selectionStore = makeStore<number | null>(null);
 
 export function useSelection(): [number | null, (id: number | null) => void] {
-  const id = useSyncExternalStore(
-    selectionStore.subscribe,
-    selectionStore.get,
-    () => null,
-  );
+  const id = useSyncExternalStore(selectionStore.subscribe, selectionStore.get, () => null);
   return [id, (next) => selectionStore.set(next)];
 }

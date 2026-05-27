@@ -63,11 +63,7 @@ function WorkbenchPage() {
               />
             </div>
             <div className="w-[380px] hairline-l surface min-h-0 overflow-auto">
-              <GroundTrack
-                sats={satellites}
-                selectedId={selectedId}
-                when={when}
-              />
+              <GroundTrack sats={satellites} selectedId={selectedId} when={when} />
             </div>
           </div>
           <div className="h-[240px] hairline-t surface flex flex-col">

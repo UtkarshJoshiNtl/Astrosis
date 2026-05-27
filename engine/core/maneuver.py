@@ -38,7 +38,9 @@ class ManeuverCalculator:
             else:
                 direction /= d_mag
 
-        evasion_mag = min(MAX_DV, warning.current_distance / warning.time_to_closest_approach * 0.5)
+        evasion_mag = min(
+            MAX_DV, warning.current_distance / warning.time_to_closest_approach * 0.5
+        )
         evasion_dv = list(direction * evasion_mag)
         recovery_dv = list(-direction * evasion_mag)
 
@@ -48,5 +50,7 @@ class ManeuverCalculator:
             evasion_dv_eci=evasion_dv,
             recovery_dv_eci=recovery_dv,
             fuel_cost_kg=fuel_cost,
-            burn_timing_offset_s=max(0.0, warning.time_to_closest_approach - COOLDOWN_S),
+            burn_timing_offset_s=max(
+                0.0, warning.time_to_closest_approach - COOLDOWN_S
+            ),
         )

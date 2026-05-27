@@ -83,8 +83,9 @@ def _brent_minimise(f, a: float, b: float, tol: float = 0.1) -> float:
     return x
 
 
-def _chan_pc(miss_dist_km: float, sigma_r_km: float,
-             rel_speed_km_s: float, hbr_km: float = 0.01) -> PcResult:
+def _chan_pc(
+    miss_dist_km: float, sigma_r_km: float, rel_speed_km_s: float, hbr_km: float = 0.01
+) -> PcResult:
     r = PcResult()
     r.sigma_pos_km = sigma_r_km
     if sigma_r_km <= 0 or rel_speed_km_s <= 0:
@@ -114,6 +115,7 @@ class ConjunctionDetector:
 
         try:
             from scipy.spatial import KDTree
+
             tree = KDTree(deb_pos)
             candidates = tree.query_ball_point(sat_pos, r=broad_radius)
         except ImportError:
@@ -125,7 +127,7 @@ class ConjunctionDetector:
                     dx = s_pos[0] - d_pos[0]
                     dy = s_pos[1] - d_pos[1]
                     dz = s_pos[2] - d_pos[2]
-                    if dx*dx + dy*dy + dz*dz <= broad_radius2:
+                    if dx * dx + dy * dy + dz * dz <= broad_radius2:
                         candidate_list.append(deb_idx)
                 candidates.append(candidate_list)
 
@@ -134,14 +136,25 @@ class ConjunctionDetector:
         sample_times = [step * step_s for step in range(n_steps + 1)]
 
         from .accelerator import propagate_batch_full_history
+
         all_sats = propagate_batch_full_history(sat_states, step_s, n_steps, mjd0=mjd0)
-        all_debs = propagate_batch_full_history(debris_states, step_s, n_steps, mjd0=mjd0)
+        all_debs = propagate_batch_full_history(
+            debris_states, step_s, n_steps, mjd0=mjd0
+        )
         if remainder_s > 1e-9:
             remainder_mjd = mjd0 + (n_steps * step_s) / 86400.0 if mjd0 > 0 else 0.0
-            sat_tail = propagate_batch_numpy(all_sats[-1].tolist(), remainder_s, 1, mjd0=remainder_mjd)
-            deb_tail = propagate_batch_numpy(all_debs[-1].tolist(), remainder_s, 1, mjd0=remainder_mjd)
-            all_sats = np.concatenate((all_sats, np.array([sat_tail], dtype=np.float64)), axis=0)
-            all_debs = np.concatenate((all_debs, np.array([deb_tail], dtype=np.float64)), axis=0)
+            sat_tail = propagate_batch_numpy(
+                all_sats[-1].tolist(), remainder_s, 1, mjd0=remainder_mjd
+            )
+            deb_tail = propagate_batch_numpy(
+                all_debs[-1].tolist(), remainder_s, 1, mjd0=remainder_mjd
+            )
+            all_sats = np.concatenate(
+                (all_sats, np.array([sat_tail], dtype=np.float64)), axis=0
+            )
+            all_debs = np.concatenate(
+                (all_debs, np.array([deb_tail], dtype=np.float64)), axis=0
+            )
             sample_times.append(lookahead_s)
 
         sigma_pos = 0.3 * math.sqrt(max(tle_age_days, 0.1))
@@ -149,19 +162,21 @@ class ConjunctionDetector:
         warnings = []
         for sat_idx, candidate_list in enumerate(candidates):
             for deb_idx in candidate_list:
-                min_dist = float('inf')
+                min_dist = float("inf")
                 tca_coarse = 0.0
                 rel_v_at_tca = [0.0, 0.0, 0.0]
 
                 for step, sample_t in enumerate(sample_times):
                     s = all_sats[step][sat_idx]
                     d = all_debs[step][deb_idx]
-                    dx = s[0] - d[0]; dy = s[1] - d[1]; dz = s[2] - d[2]
-                    dist = math.sqrt(dx*dx + dy*dy + dz*dz)
+                    dx = s[0] - d[0]
+                    dy = s[1] - d[1]
+                    dz = s[2] - d[2]
+                    dist = math.sqrt(dx * dx + dy * dy + dz * dz)
                     if dist < min_dist:
                         min_dist = dist
                         tca_coarse = sample_t
-                        rel_v_at_tca = [s[3]-d[3], s[4]-d[4], s[5]-d[5]]
+                        rel_v_at_tca = [s[3] - d[3], s[4] - d[4], s[5] - d[5]]
 
                 if min_dist >= ADVISORY_DISTANCE:
                     continue
@@ -177,34 +192,45 @@ class ConjunctionDetector:
                     curr_s = tuple(all_sats[n_nearest][sat_idx])
                     curr_d = tuple(all_debs[n_nearest][deb_idx])
                     if t_rem > 1e-9:
-                        curr_s = rk4_step(curr_s, t_rem, mjd0=mjd0, current_step=n_nearest)
-                        curr_d = rk4_step(curr_d, t_rem, mjd0=mjd0, current_step=n_nearest)
-                    dx = curr_s[0]-curr_d[0]; dy = curr_s[1]-curr_d[1]; dz = curr_s[2]-curr_d[2]
-                    return math.sqrt(dx*dx + dy*dy + dz*dz)
+                        curr_s = rk4_step(
+                            curr_s, t_rem, mjd0=mjd0, current_step=n_nearest
+                        )
+                        curr_d = rk4_step(
+                            curr_d, t_rem, mjd0=mjd0, current_step=n_nearest
+                        )
+                    dx = curr_s[0] - curr_d[0]
+                    dy = curr_s[1] - curr_d[1]
+                    dz = curr_s[2] - curr_d[2]
+                    return math.sqrt(dx * dx + dy * dy + dz * dz)
 
                 tca_refined = _brent_minimise(dist_at_t, t_lo, t_hi, tol=0.1)
                 dist_refined = dist_at_t(tca_refined)
 
                 final_dist = min(min_dist, dist_refined)
-                final_tca  = tca_refined if dist_refined < min_dist else tca_coarse
+                final_tca = tca_refined if dist_refined < min_dist else tca_coarse
 
-                if   final_dist < CRITICAL_DISTANCE:  severity = "CRITICAL"
-                elif final_dist < WARNING_DISTANCE:   severity = "WARNING"
-                elif final_dist < ADVISORY_DISTANCE:  severity = "ADVISORY"
+                if final_dist < CRITICAL_DISTANCE:
+                    severity = "CRITICAL"
+                elif final_dist < WARNING_DISTANCE:
+                    severity = "WARNING"
+                elif final_dist < ADVISORY_DISTANCE:
+                    severity = "ADVISORY"
                 else:
                     continue
 
-                rel_speed = math.sqrt(sum(v*v for v in rel_v_at_tca))
+                rel_speed = math.sqrt(sum(v * v for v in rel_v_at_tca))
                 pc = _chan_pc(final_dist, sigma_pos, rel_speed)
 
-                warnings.append(ConjunctionWarning(
-                    sat_id=sat_idx,
-                    debris_id=deb_idx,
-                    current_distance=final_dist,
-                    time_to_closest_approach=final_tca,
-                    severity=severity,
-                    relative_velocity=rel_v_at_tca,
-                    pc_result=pc,
-                ))
+                warnings.append(
+                    ConjunctionWarning(
+                        sat_id=sat_idx,
+                        debris_id=deb_idx,
+                        current_distance=final_dist,
+                        time_to_closest_approach=final_tca,
+                        severity=severity,
+                        relative_velocity=rel_v_at_tca,
+                        pc_result=pc,
+                    )
+                )
 
         return warnings

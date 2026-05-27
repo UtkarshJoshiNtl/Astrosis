@@ -36,7 +36,12 @@ function DocsPage() {
       fetch(`/docs/${doc.id}.md`)
         .then((res) => res.text())
         .then((text) => setContents((prev) => ({ ...prev, [doc.id]: text })))
-        .catch(() => setContents((prev) => ({ ...prev, [doc.id]: `# ${doc.label}\n\nFailed to load document.` })));
+        .catch(() =>
+          setContents((prev) => ({
+            ...prev,
+            [doc.id]: `# ${doc.label}\n\nFailed to load document.`,
+          })),
+        );
     }
   }, [contents]);
 
@@ -51,7 +56,9 @@ function DocsPage() {
               key={doc.id}
               onClick={() => setActiveDoc(doc.id)}
               className={`block w-full text-left px-2 py-1 ${
-                activeDoc === doc.id ? "bg-[var(--surface-2)] text-foreground" : "text-muted-foreground hover:text-foreground"
+                activeDoc === doc.id
+                  ? "bg-[var(--surface-2)] text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {doc.label}

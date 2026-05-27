@@ -5,7 +5,11 @@ import { fetchCatalogEntry } from "@/lib/astrosis/client";
 import { useConstellation } from "@/hooks/useAstrosisData";
 import type { BackendHealth } from "@/lib/astrosis/types";
 
-const NAV: Array<{ to: "/" | "/maneuver" | "/conjunctions" | "/performance" | "/validation" | "/docs" | "/connect"; label: string; exact?: boolean }> = [
+const NAV: Array<{
+  to: "/" | "/maneuver" | "/conjunctions" | "/performance" | "/validation" | "/docs" | "/connect";
+  label: string;
+  exact?: boolean;
+}> = [
   { to: "/", label: "Workbench", exact: true },
   { to: "/maneuver", label: "Maneuver" },
   { to: "/conjunctions", label: "Conjunctions" },
@@ -18,10 +22,19 @@ const NAV: Array<{ to: "/" | "/maneuver" | "/conjunctions" | "/performance" | "/
 function fmtUTC(ms: number): string {
   if (!ms) return "—";
   const d = new Date(ms);
-  return d.toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z");
+  return d
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d+Z$/, "Z");
 }
 
-export function TopBar({ backendLabel, health }: { backendLabel: string; health?: BackendHealth | undefined }) {
+export function TopBar({
+  backendLabel,
+  health,
+}: {
+  backendLabel: string;
+  health?: BackendHealth | undefined;
+}) {
   const e = useEpoch();
   const [, setSelectedId] = useSelection();
   const [searchVal, setSearchVal] = useState("");
@@ -50,9 +63,7 @@ export function TopBar({ backendLabel, health }: { backendLabel: string; health?
         setSearching(false);
       }
     } else {
-      const match = satellites.find(
-        (s) => s.name?.toLowerCase() === q.toLowerCase(),
-      );
+      const match = satellites.find((s) => s.name?.toLowerCase() === q.toLowerCase());
       if (match) setSelectedId(match.id);
     }
   }
@@ -70,7 +81,9 @@ export function TopBar({ backendLabel, health }: { backendLabel: string; health?
           placeholder="NORAD ID or name — try 25544"
           value={searchVal}
           onChange={(e) => setSearchVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleSearchSubmit(e); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSearchSubmit(e);
+          }}
         />
         {searching && <span className="tag ml-2">searching...</span>}
       </form>
@@ -127,7 +140,15 @@ export function TopBar({ backendLabel, health }: { backendLabel: string; health?
   );
 }
 
-export function PageShell({ children, backendLabel = "—", health }: { children: React.ReactNode; backendLabel?: string; health?: BackendHealth | undefined }) {
+export function PageShell({
+  children,
+  backendLabel = "—",
+  health,
+}: {
+  children: React.ReactNode;
+  backendLabel?: string;
+  health?: BackendHealth | undefined;
+}) {
   return (
     <div className="h-screen flex flex-col bg-background text-foreground">
       <TopBar backendLabel={backendLabel} health={health} />
@@ -137,9 +158,23 @@ export function PageShell({ children, backendLabel = "—", health }: { children
 }
 
 export function useUtcClock(): string {
-  const [s, set] = useState(() => new Date().toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z"));
+  const [s, set] = useState(() =>
+    new Date()
+      .toISOString()
+      .replace("T", " ")
+      .replace(/\.\d+Z$/, "Z"),
+  );
   useEffect(() => {
-    const id = setInterval(() => set(new Date().toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z")), 1000);
+    const id = setInterval(
+      () =>
+        set(
+          new Date()
+            .toISOString()
+            .replace("T", " ")
+            .replace(/\.\d+Z$/, "Z"),
+        ),
+      1000,
+    );
     return () => clearInterval(id);
   }, []);
   return s;

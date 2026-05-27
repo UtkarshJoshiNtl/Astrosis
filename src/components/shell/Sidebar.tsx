@@ -19,9 +19,7 @@ export function Sidebar({
     if (!query) return satellites;
     const q = query.toLowerCase();
     return satellites.filter(
-      (s) =>
-        String(s.id).includes(q) ||
-        (s.name && s.name.toLowerCase().includes(q)),
+      (s) => String(s.id).includes(q) || (s.name && s.name.toLowerCase().includes(q)),
     );
   }, [satellites, query]);
 
@@ -82,8 +80,12 @@ export function Sidebar({
               >
                 <span className="w-[60px] num">{sat.id}</span>
                 <span className="flex-1 truncate text-[10px]">{sat.name ?? ""}</span>
-                <span className="w-[50px] text-right num">{sat.altitude_km?.toFixed(0) ?? "—"}</span>
-                <span className="w-[48px] text-right num">{sat.inclination_deg?.toFixed(1) ?? "—"}</span>
+                <span className="w-[50px] text-right num">
+                  {sat.altitude_km?.toFixed(0) ?? "—"}
+                </span>
+                <span className="w-[48px] text-right num">
+                  {sat.inclination_deg?.toFixed(1) ?? "—"}
+                </span>
               </button>
             );
           })}

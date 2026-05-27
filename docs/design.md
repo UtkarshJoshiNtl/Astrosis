@@ -1,6 +1,6 @@
 # Astrosis Engine — Design Decisions
 
-> **Why we built it this way.** Every significant decision in Astrosis was made deliberately. This document explains the *why* behind the *what*, providing insight into the engineering tradeoffs that enable high-performance orbital simulation.
+> **Why we built it this way.** Every significant decision in Astrosis was made deliberately. This document explains the _why_ behind the _what_, providing insight into the engineering tradeoffs that enable high-performance orbital simulation.
 
 **Quick Context:** Astrosis simulates satellite motion with engineering-grade accuracy while maintaining real-time performance for constellation-scale analysis (10,000+ satellites). The core challenge: balance numerical precision with computational efficiency across CPU and GPU architectures.
 
@@ -23,6 +23,7 @@ Adaptive methods must store internal state (k values, error estimate, step histo
 ### Accuracy
 
 RK4 with `dt=10s` for circular LEO:
+
 - Local truncation error: O(dt⁵) ≈ 10⁻¹³ km per step
 - Global error after 24h: O(dt⁴) ≈ 10⁻⁷ relative energy drift (verified — see [validation/plots/1_energy_conservation.png](../validation/plots/1_energy_conservation.png))
 
@@ -36,20 +37,21 @@ For conjunction analysis, position accuracy of <0.1 km at 24h suffices (TLE unce
 ## 2. Why J2/J3/J4 and not the full EGM2008 gravity model?
 
 EGM2008 has 2,190 × 2,190 = 4.8 million spherical harmonic coefficients. Computing them per satellite per step would require:
+
 - ~10 million FP64 multiply-adds per satellite per step
 - A 37 MB coefficient table in GPU constant memory (16 MB limit on most GPUs)
 - O(l²) computation scaling — impractical for real-time use
 
 **Perturbation contribution (LEO, 400 km circular):**
 
-| Term | Acceleration magnitude | Contribution |
-|------|----------------------|-------------|
-| Two-body | 8.7 km/s² | 100% |
-| J2 | 2.6 × 10⁻³ km/s² | 0.030% |
-| J3 | 2.0 × 10⁻⁶ km/s² | 0.000023% |
-| J4 | 1.6 × 10⁻⁶ km/s² | 0.000018% |
-| J5+ | < 5 × 10⁻⁷ km/s² | < 0.000006% |
-| EGM2008 tesseral | < 2 × 10⁻⁷ km/s² | < 0.000002% |
+| Term             | Acceleration magnitude | Contribution |
+| ---------------- | ---------------------- | ------------ |
+| Two-body         | 8.7 km/s²              | 100%         |
+| J2               | 2.6 × 10⁻³ km/s²       | 0.030%       |
+| J3               | 2.0 × 10⁻⁶ km/s²       | 0.000023%    |
+| J4               | 1.6 × 10⁻⁶ km/s²       | 0.000018%    |
+| J5+              | < 5 × 10⁻⁷ km/s²       | < 0.000006%  |
+| EGM2008 tesseral | < 2 × 10⁻⁷ km/s²       | < 0.000002%  |
 
 J2 through J4 captures >99.97% of the gravitational perturbation with just 3 extra arithmetic expressions per evaluation. J5 and beyond contribute less than 0.006% and would be swamped by TLE epoch uncertainty (~0.3 km / orbit period) within a few hours.
 
@@ -59,13 +61,13 @@ J2 through J4 captures >99.97% of the gravitational perturbation with just 3 ext
 
 ## 3. Where the propagator breaks down
 
-| Regime | Why it fails | Mitigation |
-|--------|-------------|------------|
-| High eccentricity (e > 0.5) | Fixed step dt=10s is too coarse near periapsis (fast motion); energy drift grows rapidly | Use smaller dt or adaptive method near periapsis |
-| Very low altitude (< 180 km) | Atmospheric density model degrades; drag deceleration becomes large relative to gravity | Re-entry trajectories require atmospheric uncertainty models |
-| Very long propagation (> 7 days) | J4 drag cross-coupling terms and solar radiation pressure accumulate; error > 10 km | Use TLE epoch refresh every 1–2 days |
-| Resonant orbits (GPS, Molniya) | Higher harmonics (J5+, tesseral) dominate at resonance; secular drifts diverge | Add J5+ or switch to EGM2008 for these specific altitudes |
-| Near-GEO | Solar radiation pressure and lunar/solar gravity become significant perturbations | Add solar/lunar third-body terms |
+| Regime                           | Why it fails                                                                             | Mitigation                                                   |
+| -------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| High eccentricity (e > 0.5)      | Fixed step dt=10s is too coarse near periapsis (fast motion); energy drift grows rapidly | Use smaller dt or adaptive method near periapsis             |
+| Very low altitude (< 180 km)     | Atmospheric density model degrades; drag deceleration becomes large relative to gravity  | Re-entry trajectories require atmospheric uncertainty models |
+| Very long propagation (> 7 days) | J4 drag cross-coupling terms and solar radiation pressure accumulate; error > 10 km      | Use TLE epoch refresh every 1–2 days                         |
+| Resonant orbits (GPS, Molniya)   | Higher harmonics (J5+, tesseral) dominate at resonance; secular drifts diverge           | Add J5+ or switch to EGM2008 for these specific altitudes    |
+| Near-GEO                         | Solar radiation pressure and lunar/solar gravity become significant perturbations        | Add solar/lunar third-body terms                             |
 
 ---
 
@@ -83,16 +85,17 @@ The crossover plot ([validation/plots/7_cuda_crossover.png](../validation/plots/
 
 The `k_prop_soa` kernel was analysed using Nsight Compute. Key metrics:
 
-| Metric | Value |
-|--------|-------|
-| Arithmetic intensity (AI) | ~2.5 FLOP/byte |
-| Peak FP64 compute | 0.2 TFLOPs/s |
-| Peak memory bandwidth | 192 GB/s |
+| Metric                     | Value                              |
+| -------------------------- | ---------------------------------- |
+| Arithmetic intensity (AI)  | ~2.5 FLOP/byte                     |
+| Peak FP64 compute          | 0.2 TFLOPs/s                       |
+| Peak memory bandwidth      | 192 GB/s                           |
 | Roofline ceiling at AI=2.5 | min(2.5 × 192, 200) = 200 GFLOPS/s |
 
 The kernel is **memory-bound** (AI = 2.5 < ridge point = 0.2/0.192 ≈ 1.0 FLOP/byte).
 
 Wait — actually the ridge point for this hardware is at:
+
 ```
 AI_ridge = PEAK_FP64_GFLOPS / PEAK_BW_GB_s = 200 / 192 ≈ 1.04 FLOP/byte
 ```
@@ -100,6 +103,7 @@ AI_ridge = PEAK_FP64_GFLOPS / PEAK_BW_GB_s = 200 / 192 ≈ 1.04 FLOP/byte
 Since our AI ≈ 2.5 > 1.04, the kernel is actually **compute-bound** on FP64.
 
 This means future optimisation should focus on:
+
 - Reducing FP64 operations (e.g., using FP32 for the atmospheric density lookup which only needs 4 significant figures)
 - Tensor core exploitation (requires FP16/TF32, inappropriate for orbital mechanics)
 - Increasing occupancy via register pressure reduction
@@ -111,15 +115,19 @@ The roofline plot is saved to [validation/plots/8_roofline.png](../validation/pl
 ## 6. AoS vs SoA Memory Layout
 
 **AoS (Array-of-Structures)** — original layout:
+
 ```
 Memory: [x0,y0,z0,vx0,vy0,vz0, x1,y1,z1,vx1,vy1,vz1, ...]
 ```
+
 When warp of 32 threads each reads `vy[threadIdx.x]`, they access offsets `{4, 10, 16, 22, ...}` — every 6th double. This requires 6 cache line loads for 32 doubles. **Utilisation: 1/6 = 17%.**
 
 **SoA (Structure-of-Arrays)** — gamma layout:
+
 ```
 Memory: [x0,x1,...,xN, y0,y1,...,yN, z0,..., vx0,..., vy0,..., vz0,...]
 ```
+
 When warp reads `VY[threadIdx.x]`, they access offsets `{4N, 4N+1, ..., 4N+31}` — 32 consecutive doubles. One cache line load, full utilisation. **Utilisation: 100%.**
 
 Access pattern for the RK4 kernel: all 6 components are read/written once per step → SoA provides full coalescing for all accesses. Measured improvement: **~1.4× throughput** for N > 1000.
@@ -147,10 +155,13 @@ For the flat `double*` API used in the CUDA bridge, we rely on the fact that thr
 ## 9. Probability of Collision (Chan's Method)
 
 The simplified circular encounter approximation is:
+
 ```
 Pc ≈ (HBR² / 2σ²) × exp(-x²/2)
 ```
+
 where:
+
 - `HBR` = hard-body radius (10 m default — assumes one satellite is the primary)
 - `σ` = combined 1-sigma position uncertainty at TCA (km)
 - `x` = miss_distance / σ
@@ -170,6 +181,7 @@ Position uncertainty is estimated from TLE age: `σ ≈ 0.3 × sqrt(TLE_age_days
 - **Real-time constellation analysis** on consumer hardware
 
 **Key Principles:**
+
 1. **Hardware-aware design**: Optimize for GPU/CPU strengths, not mathematical purity
 2. **Validation-driven development**: Every optimization proven against analytical solutions
 3. **Scalable architecture**: Same code runs on laptops and supercomputers
@@ -183,4 +195,4 @@ Position uncertainty is estimated from TLE age: `σ ≈ 0.3 × sqrt(TLE_age_days
 
 ---
 
-*This document evolves with the codebase. Design decisions are revisited as hardware and requirements change.*
+_This document evolves with the codebase. Design decisions are revisited as hardware and requirements change._

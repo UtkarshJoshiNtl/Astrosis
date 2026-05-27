@@ -1,10 +1,24 @@
 import math
 import numpy as np
-from ..constants import MU, RE, J2, J3, J4, OMEGA_EARTH, P_SR, MU_SUN, MU_MOON, AU, RS_SUN
+from ..constants import (
+    MU,
+    RE,
+    J2,
+    J3,
+    J4,
+    OMEGA_EARTH,
+    P_SR,
+    MU_SUN,
+    MU_MOON,
+    AU,
+    RS_SUN,
+)
 from .ephemeris import sun_position_eci, moon_position_eci
 
 __all__ = [
-    "rk4_step", "rk4_batch", "propagate_batch_numpy",
+    "rk4_step",
+    "rk4_batch",
+    "propagate_batch_numpy",
 ]
 
 
@@ -34,26 +48,46 @@ def _gravity_accel(x, y, z, r_mag, r2, r3, r5, r7):
 
 
 _ATMO_TABLE = [
-    (0,    8.44,  1.225e+0), (25,   6.49,  3.899e-2), (30,   6.75,  1.774e-2),
-    (40,   7.58,  3.972e-3), (50,   8.55,  1.057e-3), (60,   7.71,  3.206e-4),
-    (70,   6.55,  8.770e-5), (80,   5.79,  1.905e-5), (90,   5.57,  3.396e-6),
-    (100,  5.90,  5.297e-7), (110,  7.17,  9.661e-8), (120,  9.59,  2.438e-8),
-    (130, 12.20,  8.484e-9), (140, 15.50,  3.845e-9), (150, 19.30,  2.070e-9),
-    (180, 26.00,  5.464e-10),(200, 26.00,  2.789e-10),(250, 38.50,  7.248e-11),
-    (300, 51.00,  2.418e-11),(350, 59.50,  9.518e-12),(400, 67.60,  3.725e-12),
-    (450, 76.00,  1.585e-12),(500, 84.00,  6.967e-13),(600, 105.0,  1.454e-13),
-    (700, 130.0,  3.614e-14),(800, 180.0,  1.170e-14),(900, 268.0,  5.245e-15),
-    (1000, 1e9,   3.019e-15),
+    (0, 8.44, 1.225e0),
+    (25, 6.49, 3.899e-2),
+    (30, 6.75, 1.774e-2),
+    (40, 7.58, 3.972e-3),
+    (50, 8.55, 1.057e-3),
+    (60, 7.71, 3.206e-4),
+    (70, 6.55, 8.770e-5),
+    (80, 5.79, 1.905e-5),
+    (90, 5.57, 3.396e-6),
+    (100, 5.90, 5.297e-7),
+    (110, 7.17, 9.661e-8),
+    (120, 9.59, 2.438e-8),
+    (130, 12.20, 8.484e-9),
+    (140, 15.50, 3.845e-9),
+    (150, 19.30, 2.070e-9),
+    (180, 26.00, 5.464e-10),
+    (200, 26.00, 2.789e-10),
+    (250, 38.50, 7.248e-11),
+    (300, 51.00, 2.418e-11),
+    (350, 59.50, 9.518e-12),
+    (400, 67.60, 3.725e-12),
+    (450, 76.00, 1.585e-12),
+    (500, 84.00, 6.967e-13),
+    (600, 105.0, 1.454e-13),
+    (700, 130.0, 3.614e-14),
+    (800, 180.0, 1.170e-14),
+    (900, 268.0, 5.245e-15),
+    (1000, 1e9, 3.019e-15),
 ]
 
 
 def get_atmospheric_density(altitude_km):
     if isinstance(altitude_km, (float, int)):
-        if altitude_km >= 1000: return 0.0
-        if altitude_km < 0: altitude_km = 0.0
+        if altitude_km >= 1000:
+            return 0.0
+        if altitude_km < 0:
+            altitude_km = 0.0
         for i in range(len(_ATMO_TABLE) - 1):
             h0, H, rho0 = _ATMO_TABLE[i]
-            if h0 <= altitude_km < _ATMO_TABLE[i+1][0]:
+            if h0 <= altitude_km < _ATMO_TABLE[i + 1][0]:
                 return rho0 * math.exp(-(altitude_km - h0) / H)
         return 0.0
 
@@ -61,7 +95,7 @@ def get_atmospheric_density(altitude_km):
     rho = np.zeros_like(alt)
     for i in range(len(_ATMO_TABLE) - 1):
         h0, H, rho0 = _ATMO_TABLE[i]
-        mask = (alt >= h0) & (alt < _ATMO_TABLE[i+1][0])
+        mask = (alt >= h0) & (alt < _ATMO_TABLE[i + 1][0])
         if np.any(mask):
             rho[mask] = rho0 * np.exp(-(alt[mask] - h0) / H)
     rho[alt >= 1000] = 0.0
@@ -72,9 +106,11 @@ def _third_body_accel(r, r_body, mu_body):
     dx = r_body[0] - r[0]
     dy = r_body[1] - r[1]
     dz = r_body[2] - r[2]
-    d_mag = math.sqrt(dx*dx + dy*dy + dz*dz)
+    d_mag = math.sqrt(dx * dx + dy * dy + dz * dz)
     d3 = d_mag * d_mag * d_mag
-    rb_mag = math.sqrt(r_body[0]*r_body[0] + r_body[1]*r_body[1] + r_body[2]*r_body[2])
+    rb_mag = math.sqrt(
+        r_body[0] * r_body[0] + r_body[1] * r_body[1] + r_body[2] * r_body[2]
+    )
     rb3 = rb_mag * rb_mag * rb_mag
     return (
         mu_body * (dx / d3 - r_body[0] / rb3),
@@ -87,30 +123,42 @@ def _srp_accel(r, r_sun, area, mass, cr):
     if area <= 0 or mass <= 0:
         return 0.0, 0.0, 0.0
 
-    rs_mag = math.sqrt(r_sun[0]*r_sun[0] + r_sun[1]*r_sun[1] + r_sun[2]*r_sun[2])
-    dot_prod = r[0]*r_sun[0] + r[1]*r_sun[1] + r[2]*r_sun[2]
-    r_mag = math.sqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2])
+    rs_mag = math.sqrt(r_sun[0] * r_sun[0] + r_sun[1] * r_sun[1] + r_sun[2] * r_sun[2])
+    dot_prod = r[0] * r_sun[0] + r[1] * r_sun[1] + r[2] * r_sun[2]
+    r_mag = math.sqrt(r[0] * r[0] + r[1] * r[1] + r[2] * r[2])
 
     shadow = 1.0
     if dot_prod < 0:
         proj = dot_prod / rs_mag
-        d_perp = math.sqrt(max(0.0, r_mag*r_mag - proj*proj))
+        d_perp = math.sqrt(max(0.0, r_mag * r_mag - proj * proj))
         if d_perp < RE:
             shadow = 0.0
 
     if shadow == 0.0:
         return 0.0, 0.0, 0.0
 
-    au_scale = (AU / rs_mag)**2
+    au_scale = (AU / rs_mag) ** 2
     coeff = P_SR * cr * (area / mass) * shadow * au_scale * 1e-3
-    return coeff * (r[0] - r_sun[0]), coeff * (r[1] - r_sun[1]), coeff * (r[2] - r_sun[2])
+    return (
+        coeff * (r[0] - r_sun[0]),
+        coeff * (r[1] - r_sun[1]),
+        coeff * (r[2] - r_sun[2]),
+    )
 
 
-def rk4_step(state: tuple, dt: float, mjd0: float = 0.0, current_step: int = 0,
-             area: float = 0.0, mass: float = 1.0, cd: float = 2.2, cr: float = 1.5) -> tuple:
+def rk4_step(
+    state: tuple,
+    dt: float,
+    mjd0: float = 0.0,
+    current_step: int = 0,
+    area: float = 0.0,
+    mass: float = 1.0,
+    cd: float = 2.2,
+    cr: float = 1.5,
+) -> tuple:
     def accel(r, v, local_mjd):
         x, y, z = r[0], r[1], r[2]
-        r_mag = math.sqrt(x*x + y*y + z*z)
+        r_mag = math.sqrt(x * x + y * y + z * z)
         r2 = r_mag * r_mag
         r3 = r2 * r_mag
         r5 = r3 * r2
@@ -125,7 +173,7 @@ def rk4_step(state: tuple, dt: float, mjd0: float = 0.0, current_step: int = 0,
                 vr_x = v[0] + OMEGA_EARTH * y
                 vr_y = v[1] - OMEGA_EARTH * x
                 vr_z = v[2]
-                v_rel_mag = math.sqrt(vr_x*vr_x + vr_y*vr_y + vr_z*vr_z)
+                v_rel_mag = math.sqrt(vr_x * vr_x + vr_y * vr_y + vr_z * vr_z)
                 if v_rel_mag > 0:
                     drag_coeff = -0.5 * cd * (area / mass) * rho * v_rel_mag * 1000.0
                     ax += drag_coeff * vr_x
@@ -137,13 +185,19 @@ def rk4_step(state: tuple, dt: float, mjd0: float = 0.0, current_step: int = 0,
             r_moon = moon_position_eci(local_mjd)
 
             sax, say, saz = _third_body_accel(r, r_sun, MU_SUN)
-            ax += sax; ay += say; az += saz
+            ax += sax
+            ay += say
+            az += saz
             max_a, may, maz = _third_body_accel(r, r_moon, MU_MOON)
-            ax += max_a; ay += may; az += maz
+            ax += max_a
+            ay += may
+            az += maz
 
             if area > 0 and mass > 0:
                 srp_ax, srp_ay, srp_az = _srp_accel(r, r_sun, area, mass, cr)
-                ax += srp_ax; ay += srp_ay; az += srp_az
+                ax += srp_ax
+                ay += srp_ay
+                az += srp_az
 
         return ax, ay, az
 
@@ -151,8 +205,8 @@ def rk4_step(state: tuple, dt: float, mjd0: float = 0.0, current_step: int = 0,
     v = state[3:]
 
     mjd_start = mjd0 + (current_step * dt) / 86400.0 if mjd0 > 0 else 0.0
-    mjd_mid   = mjd_start + (dt / 2.0) / 86400.0 if mjd0 > 0 else 0.0
-    mjd_end   = mjd_start + dt / 86400.0 if mjd0 > 0 else 0.0
+    mjd_mid = mjd_start + (dt / 2.0) / 86400.0 if mjd0 > 0 else 0.0
+    mjd_end = mjd_start + dt / 86400.0 if mjd0 > 0 else 0.0
 
     k1_v = accel(r, v, mjd_start)
     k1_r = v
@@ -172,14 +226,29 @@ def rk4_step(state: tuple, dt: float, mjd0: float = 0.0, current_step: int = 0,
     k4_v = accel(r3_tmp, v3_tmp, mjd_end)
     k4_r = v3_tmp
 
-    res = tuple(state[i] + (dt / 6.0) * (k1_r[i] + 2*k2_r[i] + 2*k3_r[i] + k4_r[i]) if i < 3 else
-                state[i] + (dt / 6.0) * (k1_v[i-3] + 2*k2_v[i-3] + 2*k3_v[i-3] + k4_v[i-3]) for i in range(6))
+    res = tuple(
+        (
+            state[i] + (dt / 6.0) * (k1_r[i] + 2 * k2_r[i] + 2 * k3_r[i] + k4_r[i])
+            if i < 3
+            else state[i]
+            + (dt / 6.0)
+            * (k1_v[i - 3] + 2 * k2_v[i - 3] + 2 * k3_v[i - 3] + k4_v[i - 3])
+        )
+        for i in range(6)
+    )
     return res
 
 
-def _accel_batch(R: np.ndarray, V: np.ndarray,
-                 area: float = 0.0, mass: float = 1.0, cd: float = 2.2, cr: float = 1.5,
-                 with_drag: bool = False, mjd: float = 0.0) -> np.ndarray:
+def _accel_batch(
+    R: np.ndarray,
+    V: np.ndarray,
+    area: float = 0.0,
+    mass: float = 1.0,
+    cd: float = 2.2,
+    cr: float = 1.5,
+    with_drag: bool = False,
+    mjd: float = 0.0,
+) -> np.ndarray:
     X, Y, Z = R[:, 0], R[:, 1], R[:, 2]
     R_mag = np.linalg.norm(R, axis=1)
     R2 = R_mag**2
@@ -230,7 +299,7 @@ def _accel_batch(R: np.ndarray, V: np.ndarray,
         dx = r_sun[0] - X
         dy = r_sun[1] - Y
         dz = r_sun[2] - Z
-        d_mag = np.sqrt(dx*dx + dy*dy + dz*dz)
+        d_mag = np.sqrt(dx * dx + dy * dy + dz * dz)
         d3 = d_mag**3
         rb_mag = np.linalg.norm(r_sun)
         rb3 = rb_mag**3
@@ -241,7 +310,7 @@ def _accel_batch(R: np.ndarray, V: np.ndarray,
         mdx = r_moon[0] - X
         mdy = r_moon[1] - Y
         mdz = r_moon[2] - Z
-        md_mag = np.sqrt(mdx*mdx + mdy*mdy + mdz*mdz)
+        md_mag = np.sqrt(mdx * mdx + mdy * mdy + mdz * mdz)
         md3 = md_mag**3
         mrb_mag = np.linalg.norm(r_moon)
         mrb3 = mrb_mag**3
@@ -250,12 +319,12 @@ def _accel_batch(R: np.ndarray, V: np.ndarray,
         az += MU_MOON * (mdz / md3 - r_moon[2] / mrb3)
 
         if area > 0 and mass > 0:
-            dot_prod = X*r_sun[0] + Y*r_sun[1] + Z*r_sun[2]
+            dot_prod = X * r_sun[0] + Y * r_sun[1] + Z * r_sun[2]
             proj = dot_prod / rb_mag
             d_perp = np.sqrt(np.maximum(0.0, R2 - proj**2))
             shadow = np.ones_like(X)
             shadow[(dot_prod < 0) & (d_perp < RE)] = 0.0
-            au_scale = (AU / rb_mag)**2
+            au_scale = (AU / rb_mag) ** 2
             coeff = -P_SR * cr * (area / mass) * shadow * au_scale * 1e-3
             ax += coeff * dx
             ay += coeff * dy
@@ -264,16 +333,24 @@ def _accel_batch(R: np.ndarray, V: np.ndarray,
     return np.column_stack((ax, ay, az))
 
 
-def rk4_batch(state_arr: np.ndarray, dt_seconds: float, steps: int,
-              area: float = 0.0, mass: float = 1.0, cd: float = 2.2, cr: float = 1.5,
-              with_drag: bool = False, mjd0: float = 0.0) -> np.ndarray:
+def rk4_batch(
+    state_arr: np.ndarray,
+    dt_seconds: float,
+    steps: int,
+    area: float = 0.0,
+    mass: float = 1.0,
+    cd: float = 2.2,
+    cr: float = 1.5,
+    with_drag: bool = False,
+    mjd0: float = 0.0,
+) -> np.ndarray:
     R = state_arr[:, :3].copy()
     V = state_arr[:, 3:].copy()
 
     for step in range(steps):
         mjd_start = mjd0 + (step * dt_seconds) / 86400.0 if mjd0 > 0 else 0.0
-        mjd_mid   = mjd_start + (dt_seconds / 2.0) / 86400.0 if mjd0 > 0 else 0.0
-        mjd_end   = mjd_start + dt_seconds / 86400.0 if mjd0 > 0 else 0.0
+        mjd_mid = mjd_start + (dt_seconds / 2.0) / 86400.0 if mjd0 > 0 else 0.0
+        mjd_end = mjd_start + dt_seconds / 86400.0 if mjd0 > 0 else 0.0
 
         k1_v = _accel_batch(R, V, area, mass, cd, cr, with_drag, mjd_start)
         k1_r = V
@@ -299,9 +376,17 @@ def rk4_batch(state_arr: np.ndarray, dt_seconds: float, steps: int,
     return np.hstack((R, V))
 
 
-def propagate_batch_numpy(states: list, dt_seconds: float, steps: int,
-                          area: float = 0.0, mass: float = 1.0, cd: float = 2.2, cr: float = 1.5,
-                          with_drag: bool = False, mjd0: float = 0.0) -> list:
+def propagate_batch_numpy(
+    states: list,
+    dt_seconds: float,
+    steps: int,
+    area: float = 0.0,
+    mass: float = 1.0,
+    cd: float = 2.2,
+    cr: float = 1.5,
+    with_drag: bool = False,
+    mjd0: float = 0.0,
+) -> list:
     arr = np.array(states, dtype=np.float64)
     arr = rk4_batch(arr, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0)
     return arr.tolist()

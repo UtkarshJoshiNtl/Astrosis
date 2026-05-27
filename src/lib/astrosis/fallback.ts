@@ -79,16 +79,26 @@ export function generateSyntheticSeeds(count = 500): SatelliteRecord[] {
     const a = 6371 + 400 + Math.random() * 500;
     const M = Math.random() * 360;
     const r = a;
-    const x = r * (Math.cos(M * Math.PI / 180) * Math.cos(raan * Math.PI / 180) - Math.sin(M * Math.PI / 180) * Math.sin(raan * Math.PI / 180) * Math.cos(inc * Math.PI / 180));
-    const y = r * (Math.cos(M * Math.PI / 180) * Math.sin(raan * Math.PI / 180) + Math.sin(M * Math.PI / 180) * Math.cos(raan * Math.PI / 180) * Math.cos(inc * Math.PI / 180));
-    const z = r * Math.sin(M * Math.PI / 180) * Math.sin(inc * Math.PI / 180);
+    const x =
+      r *
+      (Math.cos((M * Math.PI) / 180) * Math.cos((raan * Math.PI) / 180) -
+        Math.sin((M * Math.PI) / 180) *
+          Math.sin((raan * Math.PI) / 180) *
+          Math.cos((inc * Math.PI) / 180));
+    const y =
+      r *
+      (Math.cos((M * Math.PI) / 180) * Math.sin((raan * Math.PI) / 180) +
+        Math.sin((M * Math.PI) / 180) *
+          Math.cos((raan * Math.PI) / 180) *
+          Math.cos((inc * Math.PI) / 180));
+    const z = r * Math.sin((M * Math.PI) / 180) * Math.sin((inc * Math.PI) / 180);
     out.push({
       id: i,
       name: `DEMO-${i}`,
       pos: [x, y, z],
       altitude_km: a - 6371,
       inclination_deg: inc,
-      period_min: 2 * Math.PI * Math.sqrt((a * a * a) / 398600.4418) / 60,
+      period_min: (2 * Math.PI * Math.sqrt((a * a * a) / 398600.4418)) / 60,
       speed_kms: Math.sqrt(398600.4418 / a),
     });
   }

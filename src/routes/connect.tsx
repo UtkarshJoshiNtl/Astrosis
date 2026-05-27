@@ -58,13 +58,17 @@ function ConnectPage() {
                 <span className="font-medium text-foreground">CONNECTED</span>
               </div>
               <div className="font-mono text-muted-foreground text-[10px]">
-                {health.backend} &middot; Engine {health.engine_version} &middot; CUDA: {health.cuda_available ? "Yes" : "No"}
+                {health.backend} &middot; Engine {health.engine_version} &middot; CUDA:{" "}
+                {health.cuda_available ? "Yes" : "No"}
               </div>
             </div>
           ) : (
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2" style={{ background: "var(--destructive)" }} />
+                <span
+                  className="inline-block w-2 h-2"
+                  style={{ background: "var(--destructive)" }}
+                />
                 <span className="font-medium text-muted-foreground">OFFLINE</span>
               </div>
               <div className="font-mono text-muted-foreground text-[10px]">
@@ -76,11 +80,14 @@ function ConnectPage() {
 
         <h2 className="tag mb-2">FastAPI Extension Patch</h2>
         <p className="text-[10px] text-muted-foreground mb-2">
-          Paste this into <code className="text-foreground">frontend/main.py</code> to enable all endpoints.
+          Paste this into <code className="text-foreground">frontend/main.py</code> to enable all
+          endpoints.
         </p>
 
         <div className="relative surface hairline">
-          <pre className="text-[10px] p-3 overflow-auto max-h-96 font-mono text-foreground leading-relaxed">{FASTAPI_PATCH}</pre>
+          <pre className="text-[10px] p-3 overflow-auto max-h-96 font-mono text-foreground leading-relaxed">
+            {FASTAPI_PATCH}
+          </pre>
           <button
             onClick={() => navigator.clipboard.writeText(FASTAPI_PATCH)}
             className="absolute top-2 right-2 hairline px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"

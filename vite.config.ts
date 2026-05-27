@@ -26,8 +26,8 @@ export default defineConfig({
   vite: {
     server: {
       proxy: {
-        '/api': {
-          target: 'http://localhost:8000',
+        "/api": {
+          target: "http://localhost:8000",
           changeOrigin: true,
         },
       },
@@ -38,10 +38,7 @@ export default defineConfig({
         enforce: "pre",
         resolveId(source: string) {
           // Catch satellite.js internal WASM imports before they resolve to the actual files
-          if (
-            source === "#wasm-single-thread" ||
-            source === "#wasm-multi-thread"
-          ) {
+          if (source === "#wasm-single-thread" || source === "#wasm-multi-thread") {
             return emptyWasmStub;
           }
           return null;

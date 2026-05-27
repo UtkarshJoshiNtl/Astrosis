@@ -148,7 +148,9 @@
     border-color: var(--color-border);
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
   }
 
@@ -163,7 +165,9 @@
     font-feature-settings: "ss01", "cv01";
   }
 
-  code, .font-mono, .tabular {
+  code,
+  .font-mono,
+  .tabular {
     font-family: var(--font-mono);
     font-feature-settings: "tnum", "zero", "ss01";
   }
@@ -173,11 +177,21 @@
     font-feature-settings: "tnum", "zero";
   }
 
-  .hairline { border: 1px solid var(--color-border); }
-  .hairline-t { border-top: 1px solid var(--color-border); }
-  .hairline-b { border-bottom: 1px solid var(--color-border); }
-  .hairline-r { border-right: 1px solid var(--color-border); }
-  .hairline-l { border-left: 1px solid var(--color-border); }
+  .hairline {
+    border: 1px solid var(--color-border);
+  }
+  .hairline-t {
+    border-top: 1px solid var(--color-border);
+  }
+  .hairline-b {
+    border-bottom: 1px solid var(--color-border);
+  }
+  .hairline-r {
+    border-right: 1px solid var(--color-border);
+  }
+  .hairline-l {
+    border-left: 1px solid var(--color-border);
+  }
 
   .tag {
     font-family: var(--font-mono);
@@ -187,16 +201,25 @@
     color: var(--color-muted-foreground);
   }
 
-  .surface { background-color: var(--surface-1); }
-  .surface-2 { background-color: var(--surface-2); }
+  .surface {
+    background-color: var(--surface-1);
+  }
+  .surface-2 {
+    background-color: var(--surface-2);
+  }
 
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     border: 2px solid var(--color-background);
     border-radius: 0;
   }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
 
   .selected-row {
     border-left: 2px solid var(--color-primary);

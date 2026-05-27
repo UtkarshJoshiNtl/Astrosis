@@ -51,10 +51,26 @@ function PerformancePage() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={BENCH_DATA} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
               <CartesianGrid stroke="#1e2530" strokeWidth={1} />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }} />
-              <YAxis tick={{ fontSize: 10, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }} label={{ value: "Time (ms)", angle: -90, position: "insideLeft", style: { fill: "#5a6a7a", fontSize: 10, fontFamily: "IBM Plex Mono" } }} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }}
+                label={{
+                  value: "Time (ms)",
+                  angle: -90,
+                  position: "insideLeft",
+                  style: { fill: "#5a6a7a", fontSize: 10, fontFamily: "IBM Plex Mono" },
+                }}
+              />
               <Tooltip
-                contentStyle={{ background: "#0f1318", border: "1px solid #1e2530", borderRadius: 0, fontSize: 11 }}
+                contentStyle={{
+                  background: "#0f1318",
+                  border: "1px solid #1e2530",
+                  borderRadius: 0,
+                  fontSize: 11,
+                }}
                 labelStyle={{ color: "#d4dbe6" }}
               />
               <Legend wrapperStyle={{ fontSize: 10 }} />
@@ -86,7 +102,10 @@ function PerformancePage() {
         </table>
 
         <div className="text-[10px] text-muted-foreground space-y-1">
-          <p>Benchmarks from docs/performance.md · Python baseline · lower is better · FP64 throughout</p>
+          <p>
+            Benchmarks from docs/performance.md · Python baseline · lower is better · FP64
+            throughout
+          </p>
         </div>
       </div>
     </PageShell>

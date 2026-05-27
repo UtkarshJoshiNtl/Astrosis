@@ -10,10 +10,12 @@ from .geo.analysis import report_passes
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+    logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
     logger = logging.getLogger("Astrosis")
 
-    parser = argparse.ArgumentParser(description="Astrosis Orbital Simulator & Analysis Engine")
+    parser = argparse.ArgumentParser(
+        description="Astrosis Orbital Simulator & Analysis Engine"
+    )
     parser.add_argument("--version", action="version", version="Astrosis 0.1.0")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -27,19 +29,31 @@ def main():
 
     passes_parser = subparsers.add_parser("passes", help="Predict satellite passes")
     passes_parser.add_argument("--id", type=int, required=True, help="NORAD ID")
-    passes_parser.add_argument("--lat", type=float, required=True, help="Station lat (deg)")
-    passes_parser.add_argument("--lon", type=float, required=True, help="Station lon (deg)")
-    passes_parser.add_argument("--alt", type=float, default=0.0, help="Station alt (km)")
-    passes_parser.add_argument("--hours", type=float, default=24.0, help="Hours to simulate")
+    passes_parser.add_argument(
+        "--lat", type=float, required=True, help="Station lat (deg)"
+    )
+    passes_parser.add_argument(
+        "--lon", type=float, required=True, help="Station lon (deg)"
+    )
+    passes_parser.add_argument(
+        "--alt", type=float, default=0.0, help="Station alt (km)"
+    )
+    passes_parser.add_argument(
+        "--hours", type=float, default=24.0, help="Hours to simulate"
+    )
     passes_parser.add_argument("--output", type=str, help="Output JSON file")
     passes_parser.add_argument("--area", type=float, default=10.0, help="Sat area (m²)")
-    passes_parser.add_argument("--mass", type=float, default=1000.0, help="Sat mass (kg)")
+    passes_parser.add_argument(
+        "--mass", type=float, default=1000.0, help="Sat mass (kg)"
+    )
     passes_parser.add_argument("--cd", type=float, default=2.2, help="Drag coefficient")
 
     args = parser.parse_args()
 
     if args.command == "fetch":
-        satellites = tle_ingestor.get_satellites(satellite_id=args.id, force_refresh=args.force)
+        satellites = tle_ingestor.get_satellites(
+            satellite_id=args.id, force_refresh=args.force
+        )
         logger.info(f"Processed {len(satellites)} TLE entries.")
 
     elif args.command == "run":
@@ -49,16 +63,26 @@ def main():
             ctx.advance_time(args.dt)
             if step % max(1, args.steps // 10) == 0:
                 logger.info(f"Step {step}/{args.steps} (t={ctx.simulation_time:.1f}s)")
-        logger.info(f"Finished {args.steps} steps at dt={args.dt}s. Output not yet wired.")
+        logger.info(
+            f"Finished {args.steps} steps at dt={args.dt}s. Output not yet wired."
+        )
 
     elif args.command == "passes":
         start_dt = datetime.now(timezone.utc).replace(tzinfo=None)
-        logger.info(f"Passes for {args.id} from {start_dt.isoformat()}Z, {args.hours}h.")
+        logger.info(
+            f"Passes for {args.id} from {start_dt.isoformat()}Z, {args.hours}h."
+        )
 
         result = report_passes(
-            norad_id=args.id, lat=args.lat, lon=args.lon, alt=args.alt,
-            start_dt=start_dt, hours=args.hours,
-            sat_area=args.area, sat_mass=args.mass, sat_cd=args.cd,
+            norad_id=args.id,
+            lat=args.lat,
+            lon=args.lon,
+            alt=args.alt,
+            start_dt=start_dt,
+            hours=args.hours,
+            sat_area=args.area,
+            sat_mass=args.mass,
+            sat_cd=args.cd,
         )
 
         if "error" in result:

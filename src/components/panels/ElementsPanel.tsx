@@ -17,7 +17,11 @@ export function ElementsPanel({ selectedId }: { selectedId: number | null }) {
   const liveSat = satellites.find((s) => s.id === selectedId);
 
   if (!selectedId) {
-    return <div className="p-4 text-[11px] text-muted-foreground">Select a satellite from the catalog.</div>;
+    return (
+      <div className="p-4 text-[11px] text-muted-foreground">
+        Select a satellite from the catalog.
+      </div>
+    );
   }
 
   if (isFetching) {
@@ -25,7 +29,9 @@ export function ElementsPanel({ selectedId }: { selectedId: number | null }) {
   }
 
   if (!data) {
-    return <div className="p-4 text-[11px] text-muted-foreground">No data for NORAD {selectedId}.</div>;
+    return (
+      <div className="p-4 text-[11px] text-muted-foreground">No data for NORAD {selectedId}.</div>
+    );
   }
 
   const { elements, tle } = data;
@@ -58,9 +64,15 @@ export function ElementsPanel({ selectedId }: { selectedId: number | null }) {
         <div>
           <div className="tag mb-1">State Vector (ECI)</div>
           <div className="surface-2 hairline">
-            <Row label="Position" value={`[${liveSat.pos.map((v) => v.toFixed(1)).join(", ")}] km`} />
+            <Row
+              label="Position"
+              value={`[${liveSat.pos.map((v) => v.toFixed(1)).join(", ")}] km`}
+            />
             {liveSat.vel && (
-              <Row label="Velocity" value={`[${liveSat.vel.map((v) => v.toFixed(3)).join(", ")}] km/s`} />
+              <Row
+                label="Velocity"
+                value={`[${liveSat.vel.map((v) => v.toFixed(3)).join(", ")}] km/s`}
+              />
             )}
             <Row label="Speed" value={`${(liveSat.speed_kms ?? 0).toFixed(3)} km/s`} />
             <Row label="Altitude" value={`${(liveSat.altitude_km ?? 0).toFixed(1)} km`} />

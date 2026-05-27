@@ -25,7 +25,10 @@ function timeoutSignal(ms: number, outer?: AbortSignal): AbortSignal {
   return orig;
 }
 
-async function get<T>(path: string, opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<T> {
+async function get<T>(
+  path: string,
+  opts: { timeoutMs?: number; signal?: AbortSignal } = {},
+): Promise<T> {
   const base = getBackendUrl();
   const res = await fetch(`${base}${path}`, {
     signal: timeoutSignal(opts.timeoutMs ?? 3500, opts.signal),
@@ -35,7 +38,11 @@ async function get<T>(path: string, opts: { timeoutMs?: number; signal?: AbortSi
   return res.json() as Promise<T>;
 }
 
-async function post<T>(path: string, body: unknown, opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<T> {
+async function post<T>(
+  path: string,
+  body: unknown,
+  opts: { timeoutMs?: number; signal?: AbortSignal } = {},
+): Promise<T> {
   const base = getBackendUrl();
   const res = await fetch(`${base}${path}`, {
     method: "POST",
@@ -72,7 +79,8 @@ export function enrichSatellite(raw: {
     const hy = z * vx - x * vz;
     const hz = x * vy - y * vx;
     const hMag = Math.sqrt(hx * hx + hy * hy + hz * hz);
-    if (hMag > 0) inclination_deg = (Math.acos(Math.max(-1, Math.min(1, hz / hMag))) * 180) / Math.PI;
+    if (hMag > 0)
+      inclination_deg = (Math.acos(Math.max(-1, Math.min(1, hz / hMag))) * 180) / Math.PI;
     // Approx period from vis-viva: a = 1 / (2/r - v²/μ)
     const mu = 398600.4418;
     const v2 = speed_kms * speed_kms;

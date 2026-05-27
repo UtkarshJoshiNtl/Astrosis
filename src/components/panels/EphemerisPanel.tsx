@@ -15,15 +15,18 @@ import {
 export function EphemerisPanel({ selectedId }: { selectedId: number | null }) {
   const { data, isFetching } = useQuery<PropagateResponse>({
     queryKey: ["propagate", selectedId],
-    queryFn: ({ signal }) =>
-      propagate({ norad: selectedId!, hours: 6, dt_seconds: 60 }, signal),
+    queryFn: ({ signal }) => propagate({ norad: selectedId!, hours: 6, dt_seconds: 60 }, signal),
     enabled: selectedId != null,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
 
   if (!selectedId) {
-    return <div className="p-4 text-[11px] text-muted-foreground">Select a satellite to view ephemeris.</div>;
+    return (
+      <div className="p-4 text-[11px] text-muted-foreground">
+        Select a satellite to view ephemeris.
+      </div>
+    );
   }
 
   if (isFetching) {
@@ -31,7 +34,9 @@ export function EphemerisPanel({ selectedId }: { selectedId: number | null }) {
   }
 
   if (!data?.ephemeris?.length) {
-    return <div className="p-4 text-[11px] text-muted-foreground">No ephemeris data available.</div>;
+    return (
+      <div className="p-4 text-[11px] text-muted-foreground">No ephemeris data available.</div>
+    );
   }
 
   const chartData = data.ephemeris.map((p) => {
@@ -49,15 +54,27 @@ export function EphemerisPanel({ selectedId }: { selectedId: number | null }) {
   });
 
   const step = Math.max(1, Math.floor(data.ephemeris.length / 7));
-  const tablePoints = [0, ...Array.from({ length: 7 }, (_, i) => (i + 1) * step)].slice(0, 8).map((i) => chartData[Math.min(i, chartData.length - 1)]);
+  const tablePoints = [0, ...Array.from({ length: 7 }, (_, i) => (i + 1) * step)]
+    .slice(0, 8)
+    .map((i) => chartData[Math.min(i, chartData.length - 1)]);
 
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Record<string, unknown>[] }) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Record<string, unknown>[];
+  }) => {
     if (!active || !payload?.[0]) return null;
     const d = payload[0].payload as Record<string, number | string>;
     return (
       <div className="surface-2 hairline px-2 py-1 text-[10px] font-mono">
-        <div>{d.t} &middot; {Number(d.alt_km).toFixed(1)} km</div>
-        <div className="text-muted-foreground">[{Number(d.lat).toFixed(1)}°, {Number(d.lon).toFixed(1)}°]</div>
+        <div>
+          {d.t} &middot; {Number(d.alt_km).toFixed(1)} km
+        </div>
+        <div className="text-muted-foreground">
+          [{Number(d.lat).toFixed(1)}°, {Number(d.lon).toFixed(1)}°]
+        </div>
       </div>
     );
   };
@@ -72,7 +89,10 @@ export function EphemerisPanel({ selectedId }: { selectedId: number | null }) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="#1e2530" strokeWidth={1} />
-            <XAxis dataKey="t" tick={{ fontSize: 9, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }} />
+            <XAxis
+              dataKey="t"
+              tick={{ fontSize: 9, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }}
+            />
             <YAxis tick={{ fontSize: 9, fill: "#5a6a7a", fontFamily: "IBM Plex Mono" }} />
             <Tooltip content={<CustomTooltip />} />
             <Line type="monotone" dataKey="alt_km" stroke="#4a8bbf" dot={false} strokeWidth={1.5} />

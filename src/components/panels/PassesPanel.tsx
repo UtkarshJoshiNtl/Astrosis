@@ -10,7 +10,24 @@ function fmtDur(s: number): string {
 }
 
 function fmtAz(deg: number): string {
-  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  const dirs = [
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
+  ];
   const i = Math.round(deg / 22.5) % 16;
   return `${deg.toFixed(0)}° ${dirs[i]}`;
 }
@@ -22,12 +39,15 @@ export function PassesPanel({ selectedId }: { selectedId: number | null }) {
   const { data, isFetching } = useQuery<PassPrediction[]>({
     queryKey: ["passes", selectedId, lat, lon],
     queryFn: ({ signal }) =>
-      passes({
-        norad: selectedId!,
-        lat_deg: parseFloat(lat),
-        lon_deg: parseFloat(lon),
-        hours: 24,
-      }, signal),
+      passes(
+        {
+          norad: selectedId!,
+          lat_deg: parseFloat(lat),
+          lon_deg: parseFloat(lon),
+          hours: 24,
+        },
+        signal,
+      ),
     enabled: selectedId != null,
     staleTime: 60000,
     refetchOnWindowFocus: false,
@@ -49,7 +69,11 @@ export function PassesPanel({ selectedId }: { selectedId: number | null }) {
   }
 
   if (!selectedId) {
-    return <div className="p-4 text-[11px] text-muted-foreground">Select a satellite to predict passes.</div>;
+    return (
+      <div className="p-4 text-[11px] text-muted-foreground">
+        Select a satellite to predict passes.
+      </div>
+    );
   }
 
   return (
@@ -71,7 +95,10 @@ export function PassesPanel({ selectedId }: { selectedId: number | null }) {
             onChange={(e) => setLon(e.target.value)}
           />
         </div>
-        <button onClick={useGeo} className="hairline px-2 py-0.5 text-muted-foreground hover:text-foreground text-[10px]">
+        <button
+          onClick={useGeo}
+          className="hairline px-2 py-0.5 text-muted-foreground hover:text-foreground text-[10px]"
+        >
           use my location
         </button>
         <span className="tag">next 24h</span>
@@ -94,16 +121,30 @@ export function PassesPanel({ selectedId }: { selectedId: number | null }) {
           <tbody>
             {data.map((p, i) => (
               <tr key={i} className="hairline-b">
-                <td className="px-2 py-1 font-mono text-[10px]">{new Date(p.aos).toISOString().slice(11, 19)}</td>
-                <td className="px-2 py-1 font-mono text-[10px]">{new Date(p.los).toISOString().slice(11, 19)}</td>
-                <td className={`text-right px-2 py-1 num ${elevColor(p.max_el_deg)}`}>{p.max_el_deg.toFixed(1)}°</td>
-                <td className="text-right px-2 py-1 num text-muted-foreground">{fmtAz(p.az_aos_deg)}</td>
-                <td className="text-right px-2 py-1 num text-muted-foreground">{fmtAz(p.az_los_deg)}</td>
+                <td className="px-2 py-1 font-mono text-[10px]">
+                  {new Date(p.aos).toISOString().slice(11, 19)}
+                </td>
+                <td className="px-2 py-1 font-mono text-[10px]">
+                  {new Date(p.los).toISOString().slice(11, 19)}
+                </td>
+                <td className={`text-right px-2 py-1 num ${elevColor(p.max_el_deg)}`}>
+                  {p.max_el_deg.toFixed(1)}°
+                </td>
+                <td className="text-right px-2 py-1 num text-muted-foreground">
+                  {fmtAz(p.az_aos_deg)}
+                </td>
+                <td className="text-right px-2 py-1 num text-muted-foreground">
+                  {fmtAz(p.az_los_deg)}
+                </td>
                 <td className="text-right px-2 py-1 num">{fmtDur(p.duration_s)}</td>
               </tr>
             ))}
             {data.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-4 text-muted-foreground">No passes in next 24h</td></tr>
+              <tr>
+                <td colSpan={6} className="text-center py-4 text-muted-foreground">
+                  No passes in next 24h
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

@@ -1,11 +1,12 @@
-
 ## What's actually in `alpha` (verified, not invented)
 
 FastAPI server (`frontend/main.py`):
+
 - `GET /` — serves `frontend/index.html`
 - `GET /api/constellation` — 500 fake LEO seeds propagated +60 s, returns `[{id, pos:[x,y,z]}]` only
 
 Engine surface that is **already implemented but not exposed over HTTP**:
+
 - `engine.core.accelerator.propagate_batch(states, dt_seconds, steps)` — batch RK4 with auto-selected backend (CUDA / C++ / NumPy / Python) and `backend_info()`
 - `engine.simulation.SimulationContext` — `load_tle(norad_id)`, `propagate(sat, hours, dt_seconds)`, `conjunction_assessment([sats])`, `plan_hohmann_transfer(sat, target_sma_km)`
 - `engine.core.conjunction` — KDTree broad-phase, Brent TCA refinement, Chan Pc
@@ -79,7 +80,7 @@ No floating glass cards. Solid surfaces, hairline dividers.
 - `/conjunctions` — full-screen pair table + 3D miss-distance plot
 - `/maneuver` — Hohmann planner: source orbit, target SMA, Isp, mass → Δv stages + fuel bar + new orbit overlay
 - `/performance` — real numbers from `docs/performance.md` (markdown-rendered table + Recharts bar of the actual values; not a fake live benchmark)
-- `/validation` — gallery of the *actual* PNGs from `validation/plots/` referenced from `raw.githubusercontent.com/.../alpha/...` with captions pulled from `docs/validation.md`
+- `/validation` — gallery of the _actual_ PNGs from `validation/plots/` referenced from `raw.githubusercontent.com/.../alpha/...` with captions pulled from `docs/validation.md`
 - `/docs` — markdown render of `docs/architecture.md`, `design.md`, `profiling.md`, `validation.md` with TOC
 - `/connect` — backend URL input, health check, CORS patch copy-block, link to local install
 

@@ -33,23 +33,44 @@ function Axes() {
   const len = RE * SCALE * 1.7;
   return (
     <group>
-      <Line p={[0,0,0]} q={[len,0,0]} color="#3a2020" />
-      <Line p={[0,0,0]} q={[0,len,0]} color="#203a20" />
-      <Line p={[0,0,0]} q={[0,0,len]} color="#20203a" />
+      <Line p={[0, 0, 0]} q={[len, 0, 0]} color="#3a2020" />
+      <Line p={[0, 0, 0]} q={[0, len, 0]} color="#203a20" />
+      <Line p={[0, 0, 0]} q={[0, 0, len]} color="#20203a" />
     </group>
   );
 }
 
-function Line({ p, q, color }: { p: [number,number,number]; q: [number,number,number]; color: string }) {
+function Line({
+  p,
+  q,
+  color,
+}: {
+  p: [number, number, number];
+  q: [number, number, number];
+  color: string;
+}) {
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute([...p, ...q], 3));
     return g;
   }, [p, q]);
-  return <line><primitive attach="geometry" object={geom} /><lineBasicMaterial color={color} /></line>;
+  return (
+    <line>
+      <primitive attach="geometry" object={geom} />
+      <lineBasicMaterial color={color} />
+    </line>
+  );
 }
 
-function Sats({ sats, selectedId, onSelect }: { sats: SatelliteRecord[]; selectedId: number | null; onSelect: (id: number) => void }) {
+function Sats({
+  sats,
+  selectedId,
+  onSelect,
+}: {
+  sats: SatelliteRecord[];
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const amber = useMemo(() => new THREE.Color("#e8943a"), []);
@@ -75,7 +96,11 @@ function Sats({ sats, selectedId, onSelect }: { sats: SatelliteRecord[]; selecte
       ref={ref}
       args={[undefined, undefined, Math.max(1, sats.length)]}
       frustumCulled={false}
-      onClick={(e) => { e.stopPropagation(); const i = e.instanceId; if (i != null) onSelect(sats[i].id); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        const i = e.instanceId;
+        if (i != null) onSelect(sats[i].id);
+      }}
     >
       <sphereGeometry args={[1, 6, 6]} />
       <meshBasicMaterial vertexColors toneMapped={false} />
@@ -104,7 +129,10 @@ function OrbitTrace({ positions }: { positions: [number, number, number][] }) {
 
 function CameraFocus({ target }: { target: [number, number, number] | null }) {
   const controls = useThree((s) => s.controls) as { target: THREE.Vector3 } | null;
-  const targetVec = useMemo(() => target ? new THREE.Vector3(target[0], target[1], target[2]) : null, [target]);
+  const targetVec = useMemo(
+    () => (target ? new THREE.Vector3(target[0], target[1], target[2]) : null),
+    [target],
+  );
   useFrame(() => {
     if (!targetVec || !controls) return;
     controls.target.lerp(targetVec, 0.05);
@@ -112,11 +140,20 @@ function CameraFocus({ target }: { target: [number, number, number] | null }) {
   return null;
 }
 
-export function Globe({ satellites, selectedId, onSelect, when }: { satellites: SatelliteRecord[]; selectedId: number | null; onSelect: (id: number) => void; when: Date }) {
+export function Globe({
+  satellites,
+  selectedId,
+  onSelect,
+  when,
+}: {
+  satellites: SatelliteRecord[];
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  when: Date;
+}) {
   const { data: traceData } = useQuery<PropagateResponse>({
     queryKey: ["propagate-trace", selectedId],
-    queryFn: ({ signal }) =>
-      propagate({ norad: selectedId!, hours: 1.5, dt_seconds: 60 }, signal),
+    queryFn: ({ signal }) => propagate({ norad: selectedId!, hours: 1.5, dt_seconds: 60 }, signal),
     enabled: selectedId != null,
     staleTime: 30000,
     refetchOnWindowFocus: false,
@@ -124,11 +161,9 @@ export function Globe({ satellites, selectedId, onSelect, when }: { satellites: 
 
   const tracePositions = useMemo(() => {
     if (!traceData?.ephemeris) return [];
-    return traceData.ephemeris.map((p) => [
-      p.pos[0] * SCALE,
-      p.pos[2] * SCALE,
-      -p.pos[1] * SCALE,
-    ] as [number, number, number]);
+    return traceData.ephemeris.map(
+      (p) => [p.pos[0] * SCALE, p.pos[2] * SCALE, -p.pos[1] * SCALE] as [number, number, number],
+    );
   }, [traceData]);
 
   const selectedSat = useMemo(
@@ -138,15 +173,15 @@ export function Globe({ satellites, selectedId, onSelect, when }: { satellites: 
 
   const focusTarget = useMemo((): [number, number, number] | null => {
     if (!selectedSat) return null;
-    return [
-      selectedSat.pos[0] * SCALE,
-      selectedSat.pos[2] * SCALE,
-      -selectedSat.pos[1] * SCALE,
-    ];
+    return [selectedSat.pos[0] * SCALE, selectedSat.pos[2] * SCALE, -selectedSat.pos[1] * SCALE];
   }, [selectedSat]);
 
   return (
-    <Canvas camera={{ position: [14, 9, 14], fov: 42, near: 0.1, far: 800 }} dpr={[1, 2]} gl={{ antialias: true }}>
+    <Canvas
+      camera={{ position: [14, 9, 14], fov: 42, near: 0.1, far: 800 }}
+      dpr={[1, 2]}
+      gl={{ antialias: true }}
+    >
       <color attach="background" args={["#0a0c0f"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[15, 8, 12]} intensity={0.9} color="#e8ecf2" />
@@ -157,7 +192,13 @@ export function Globe({ satellites, selectedId, onSelect, when }: { satellites: 
         {tracePositions.length > 0 && <OrbitTrace positions={tracePositions} />}
         {focusTarget && <CameraFocus target={focusTarget} />}
       </Suspense>
-      <OrbitControls enableDamping dampingFactor={0.08} minDistance={8} maxDistance={60} rotateSpeed={0.5} />
+      <OrbitControls
+        enableDamping
+        dampingFactor={0.08}
+        minDistance={8}
+        maxDistance={60}
+        rotateSpeed={0.5}
+      />
     </Canvas>
   );
 }

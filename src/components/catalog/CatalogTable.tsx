@@ -45,12 +45,16 @@ export function CatalogTable({
                   transform: `translateY(${vItem.start}px)`,
                 }}
                 className={`flex items-center px-3 hover:bg-[var(--surface-2)] ${
-                  sat.id === selectedId ? "bg-[var(--surface-2)] text-[var(--primary)]" : "text-muted-foreground"
+                  sat.id === selectedId
+                    ? "bg-[var(--surface-2)] text-[var(--primary)]"
+                    : "text-muted-foreground"
                 }`}
               >
                 <span className="flex-1 num text-left">{sat.id}</span>
                 <span className="w-16 text-right num">{sat.altitude_km?.toFixed(0) ?? "—"}</span>
-                <span className="w-16 text-right num">{sat.inclination_deg?.toFixed(1) ?? "—"}</span>
+                <span className="w-16 text-right num">
+                  {sat.inclination_deg?.toFixed(1) ?? "—"}
+                </span>
                 <span className="w-16 text-right num">{sat.period_min?.toFixed(1) ?? "—"}</span>
               </button>
             );

@@ -15,7 +15,9 @@ def _julian_date(dt: datetime) -> float:
         m += 12
     A = np.floor(y / 100.0)
     B = 2.0 - A + np.floor(A / 4.0)
-    jd = np.floor(365.25 * (y + 4716.0)) + np.floor(30.6001 * (m + 1.0)) + d + B - 1524.5
+    jd = (
+        np.floor(365.25 * (y + 4716.0)) + np.floor(30.6001 * (m + 1.0)) + d + B - 1524.5
+    )
     return jd
 
 
@@ -47,7 +49,9 @@ def check_eclipse(r_sat: np.ndarray, r_sun: np.ndarray) -> str:
     return "SUNLIGHT"
 
 
-def is_optically_visible(el_rad: float, r_sat_eci: np.ndarray, dt: datetime, min_elevation_deg: float = 10.0) -> bool:
+def is_optically_visible(
+    el_rad: float, r_sat_eci: np.ndarray, dt: datetime, min_elevation_deg: float = 10.0
+) -> bool:
     if np.degrees(el_rad) < min_elevation_deg:
         return False
     return check_eclipse(r_sat_eci, sun_position_eci(dt)) != "UMBRA"

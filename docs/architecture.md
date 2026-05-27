@@ -70,15 +70,15 @@ Astrosis automatically chooses the best backend based on hardware availability a
 
 ### Heuristics & Thresholds
 
-| Factor | Threshold | Decision |
-|--------|-----------|----------|
-| **Satellites** | < 500 | Prefer C++ (lower launch overhead) |
-| **Satellites** | 500–2,000 | CUDA competitive; use available |
-| **Satellites** | > 2,000 | Strongly prefer CUDA |
-| **Propagation steps** | < 10,000 | CPU typically adequate |
-| **Propagation steps** | > 100,000 | CUDA essential for real-time |
-| **Integration dt** | > 60 seconds | CPU competitive (fewer steps) |
-| **Integration dt** | 1–10 seconds | CUDA advantage grows |
+| Factor                | Threshold    | Decision                           |
+| --------------------- | ------------ | ---------------------------------- |
+| **Satellites**        | < 500        | Prefer C++ (lower launch overhead) |
+| **Satellites**        | 500–2,000    | CUDA competitive; use available    |
+| **Satellites**        | > 2,000      | Strongly prefer CUDA               |
+| **Propagation steps** | < 10,000     | CPU typically adequate             |
+| **Propagation steps** | > 100,000    | CUDA essential for real-time       |
+| **Integration dt**    | > 60 seconds | CPU competitive (fewer steps)      |
+| **Integration dt**    | 1–10 seconds | CUDA advantage grows               |
 
 ### Manual Backend Override
 
@@ -104,29 +104,34 @@ sim = SimulationContext(backend=Backend.NUMPY)
 ### `engine/core/` — Physics Kernels
 
 **Propagator** (`propagator.py`):
+
 - RK4 numerical integration
 - Force computation: J2–J4, drag, SRP, third-body
 - State vector: [x, y, z, vx, vy, vz]
 - Available in: CUDA, C++/OpenMP, NumPy, Python
 
 **Maneuver** (`maneuver.py`):
+
 - ΔV calculations (impulsive burns)
 - Fuel consumption modeling (Tsiolkovsky equation)
 - Hohmann transfer design
 - Low-thrust spiral optimization (future)
 
 **Conjunction** (`conjunction.py`):
+
 - Pairwise distance computation
 - Time-of-Closest-Approach (TCA) refinement
 - Collision probability (Chan approximation)
 - Spatial partitioning for O(N log N) screening
 
 **Fuel** (`fuel.py`):
+
 - Propellant budget tracking
 - Specific impulse (Isp) calculations
 - Thruster efficiency models
 
 **Ephemeris** (`ephemeris.py`):
+
 - Solar/lunar position (low-precision analytical)
 - Julian Date handling
 - Epoch conversions
@@ -136,18 +141,21 @@ sim = SimulationContext(backend=Backend.NUMPY)
 ### `engine/geo/` — Coordinate Transformations
 
 **Frames** (`frames.py`):
+
 - ECI ↔ ECEF conversions (with proper pole wandering)
 - ECEF → LLA (latitude/longitude/altitude)
 - Topocentric coordinates (local horizon system)
 - Time system conversions: UTC ↔ TAI ↔ TT
 
 **Analysis** (`analysis.py`):
+
 - Ground visibility calculations
 - Elevation/azimuth/range computation
 - Rise/set time predictions
 - Groundtrack analysis
 
 **Visibility** (`visibility.py`):
+
 - Line-of-sight checks
 - Antenna pointing solutions
 - Coverage area computation
@@ -157,12 +165,14 @@ sim = SimulationContext(backend=Backend.NUMPY)
 ### `engine/io/` — Data I/O
 
 **Data** (`data.py`):
+
 - TLE parsing (Two-Line Element Set format)
 - OEM file handling (Orbit Ephemeris Message)
 - CSV import/export
 - Database interface (future)
 
 **Catalog Integration:**
+
 - CelesTrak API (real-time TLE updates)
 - Space-Track.org (historical TLE archive)
 - Local file caching
@@ -172,6 +182,7 @@ sim = SimulationContext(backend=Backend.NUMPY)
 ### `cpp/` — High-Performance Backends
 
 **Structure:**
+
 ```
 cpp/
 ├── CMakeLists.txt          # Build configuration
@@ -186,6 +197,7 @@ cpp/
 ```
 
 **Build:**
+
 ```bash
 cd cpp && mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=ON
@@ -193,8 +205,6 @@ make -j$(nproc)
 ```
 
 ---
-
-
 
 ### `frontend/` — Visualization
 
@@ -253,6 +263,7 @@ make -j$(nproc)
 ### Default Precision: FP64 (IEEE 754 Double)
 
 **Rationale:**
+
 - Orbital state spans 13 orders of magnitude (position to velocity)
 - FP32 mantissa (24 bits) insufficient for differentiation
 - Energy conservation requires FP64 for 24-hour stability

@@ -28,16 +28,16 @@ Astrosis is an **engineering-grade orbital simulation engine** designed for high
 
 ## 📊 Performance
 
-| Workload | Time (mean ± σ) | Speedup |
-|----------|-----------------|---------|
-| 1 satellite, 50k steps (Python) | 395 ± 8 ms | — |
-| 1 satellite, 50k steps (C++) | 21.9 ± 1.2 ms | **18×** |
-| 1,000 satellites, 24h @ dt=10s (Python) | 7,034 ± 145 ms | — |
-| 1,000 satellites, 24h @ dt=10s (C++) | 13.9 ± 0.8 ms | **507×** |
-| 1,000 satellites, 24h @ dt=10s (CUDA) | 46.9 ± 2.1 ms | **150×** |
-| Collision screening, 400×400 pairs (Python) | 46.7 ± 0.9 s | — |
-| Collision screening, 400×400 pairs (C++) | 5.2 ± 0.3 s | **9×** |
-| Collision screening, 400×400 pairs (CUDA) | 564 ± 18 ms | **83×** |
+| Workload                                    | Time (mean ± σ) | Speedup  |
+| ------------------------------------------- | --------------- | -------- |
+| 1 satellite, 50k steps (Python)             | 395 ± 8 ms      | —        |
+| 1 satellite, 50k steps (C++)                | 21.9 ± 1.2 ms   | **18×**  |
+| 1,000 satellites, 24h @ dt=10s (Python)     | 7,034 ± 145 ms  | —        |
+| 1,000 satellites, 24h @ dt=10s (C++)        | 13.9 ± 0.8 ms   | **507×** |
+| 1,000 satellites, 24h @ dt=10s (CUDA)       | 46.9 ± 2.1 ms   | **150×** |
+| Collision screening, 400×400 pairs (Python) | 46.7 ± 0.9 s    | —        |
+| Collision screening, 400×400 pairs (C++)    | 5.2 ± 0.3 s     | **9×**   |
+| Collision screening, 400×400 pairs (CUDA)   | 564 ± 18 ms     | **83×**  |
 
 **Hardware:** NVIDIA RTX 2050 (16 SMs); AMD Ryzen 5 (6-core); CUDA 12.9; GCC -O3 -march=native
 
@@ -77,29 +77,32 @@ For details: [docs/architecture.md](docs/architecture.md)
 ### Integration Method: Fixed-Step RK4
 
 **Why fixed timesteps?**
+
 - GPU-friendly: no warp divergence
 - Predictable memory usage
 - Excellent for batching thousands of satellites
 - Proven 4th-order accuracy (O(dt⁴))
 
 **Integration parameters:**
+
 - Default timestep: dt = 10 seconds
 - Convergence: Exactly 4th-order (16× error reduction per dt halving)
 - Energy conservation: < 1e-7 relative drift over 24h
 
 **Limitations:**
+
 - Not symplectic; long-term (>30 days) energy drift emerges
 - Fixed timesteps suboptimal for highly eccentric orbits (e > 0.95)
 - Adaptive integration not supported (would break GPU parallelism)
 
 ### Force Model
 
-| Force | Model | Notes |
-|-------|-------|-------|
-| Gravity | J2, J3, J4 harmonics (EGM96) | Higher harmonics negligible for operational SSA |
-| Drag | US Standard Atmosphere 1976 | F10.7-dependent; simplified vs. NRLMSISE-00 |
-| SRP | Cannonball model with eclipse | Accurate for < 0.1 AU |
-| Third-body | Sun + Moon (low-precision) | Adequate for LEO/MEO; GEO requires JPL ephemerides |
+| Force      | Model                         | Notes                                              |
+| ---------- | ----------------------------- | -------------------------------------------------- |
+| Gravity    | J2, J3, J4 harmonics (EGM96)  | Higher harmonics negligible for operational SSA    |
+| Drag       | US Standard Atmosphere 1976   | F10.7-dependent; simplified vs. NRLMSISE-00        |
+| SRP        | Cannonball model with eclipse | Accurate for < 0.1 AU                              |
+| Third-body | Sun + Moon (low-precision)    | Adequate for LEO/MEO; GEO requires JPL ephemerides |
 
 ### Validation Results
 
@@ -109,18 +112,19 @@ For details: [docs/architecture.md](docs/architecture.md)
 ✅ **SRP modeling**: 50× correct ratio for low-mass vs. high-mass satellites
 
 **ISS validation (position error vs. SGP4):**
+
 - 6 hours: 3.2 km
 - 12 hours: 5.8 km
 - 24 hours: 9.8 km
 
-*Note:* This is not validation against "truth" — both RK4 and SGP4 approximate. The test validates that perturbation modeling behaves consistently.
+_Note:_ This is not validation against "truth" — both RK4 and SGP4 approximate. The test validates that perturbation modeling behaves consistently.
 
 **Full validation suite:** [docs/validation.md](docs/validation.md)
 
 ### Validation Gallery
 
-| Energy Conservation | SGP4 Comparison | CUDA Crossover |
-| :---: | :---: | :---: |
+|                  Energy Conservation                  |                 SGP4 Comparison                 |                   CUDA Crossover                    |
+| :---------------------------------------------------: | :---------------------------------------------: | :-------------------------------------------------: |
 | ![Energy](validation/plots/1_energy_conservation.png) | ![SGP4](validation/plots/2_sgp4_comparison.png) | ![Crossover](validation/plots/7_cuda_crossover.png) |
 
 ---
@@ -128,6 +132,7 @@ For details: [docs/architecture.md](docs/architecture.md)
 ## 🛠 Quick Start
 
 ### Prerequisites
+
 ```bash
 Python 3.10+
 pip install -r requirements.txt
@@ -199,29 +204,33 @@ python main.py conjunction --catalog tles.txt --output risks.csv
 
 ## 📚 Documentation
 
-| Resource | Purpose |
-|----------|---------|
-| [docs/architecture.md](docs/architecture.md) | System design, backends, API stability, extensibility |
-| [docs/performance.md](docs/performance.md) | Benchmarks, scaling, memory layout, kernel occupancy |
-| [docs/profiling.md](docs/profiling.md) | CUDA profiling, roofline analysis, performance optimization |
-| [docs/validation.md](docs/validation.md) | Physics verification, test cases, validation methodology, references |
-| [docs/design.md](docs/design.md) | Design tradeoffs (RK4 vs. adaptive, J2–J4 vs. full EGM2008, etc.) |
-| [docs/contributing.md](docs/contributing.md) | Development setup, testing, contribution guidelines |
+| Resource                                     | Purpose                                                              |
+| -------------------------------------------- | -------------------------------------------------------------------- |
+| [docs/architecture.md](docs/architecture.md) | System design, backends, API stability, extensibility                |
+| [docs/performance.md](docs/performance.md)   | Benchmarks, scaling, memory layout, kernel occupancy                 |
+| [docs/profiling.md](docs/profiling.md)       | CUDA profiling, roofline analysis, performance optimization          |
+| [docs/validation.md](docs/validation.md)     | Physics verification, test cases, validation methodology, references |
+| [docs/design.md](docs/design.md)             | Design tradeoffs (RK4 vs. adaptive, J2–J4 vs. full EGM2008, etc.)    |
+| [docs/contributing.md](docs/contributing.md) | Development setup, testing, contribution guidelines                  |
 
 ---
 
 ## 🔍 Key Design Decisions
 
 ### Why RK4 and not adaptive stepping?
+
 Fixed timesteps are GPU-efficient (no warp divergence) and ideal for batching. Adaptive methods better for single satellites; RK4 wins for constellations.
 
 ### Why J2–J4 and not full EGM2008?
+
 EGM2008 has 4.8 million coefficients; impractical for real-time. J2–J4 captures 99% of perturbation for operational SSA.
 
 ### Why chan's method for Pc and not Foster/Patera?
+
 Chan is fast and reasonable for screening. Full covariance-based Pc requires orbital determination (not implemented). **Current Pc model is experimental.**
 
 ### Precision: Why FP64 everywhere?
+
 Orbital state spans 13 orders of magnitude (position ~1 m, velocity ~7 km/s). FP32 insufficient for 24-hour integration. Energy conservation tests confirm FP64 necessity.
 
 ---
@@ -259,6 +268,7 @@ python validation/test_monte_carlo.py --cases 100 --hours 72
 **Current Status: EXPERIMENTAL**
 
 The API is subject to change before v1.0:
+
 - Core propagation / conjunction: Stable
 - Maneuver planning: May extend with constraints/optimization
 - REST endpoints: May change paths/parameters
@@ -271,6 +281,7 @@ See [docs/architecture.md](docs/architecture.md#api-stability--versioning) for v
 ## 🤝 Contributing
 
 Areas of interest:
+
 - Physics models (higher-order harmonics, improved drag)
 - Numerical methods (symplectic integrators, adaptive stepping)
 - Backends (Vulkan, HIP, SYCL)
@@ -289,18 +300,21 @@ MIT License. Free for academic, research, and commercial use. See [LICENSE](LICE
 ## 🙏 References & Acknowledgments
 
 **Data & Standards:**
+
 - CelesTrak (TLE data)
 - Space-Track.org (NORAD catalog)
 - NASA GSFC (ephemeris, force model guidance)
 - ESA (CDM standards)
 
 **Physics References:**
+
 - Vallado, Crawford, Hujsak, Kelso (2006): "Revisiting Spacetrack Report #3"
 - U.S. Standard Atmosphere (1976)
 - EGM96 Gravity Model
 - Montenbruck & Eberhard (2000): Satellite Orbits
 
 **Tools:**
+
 - Skyfield (astronomical calculations)
 - Three.js (visualization)
 - FastAPI (REST framework)
@@ -309,4 +323,4 @@ MIT License. Free for academic, research, and commercial use. See [LICENSE](LICE
 
 **Astrosis** — High-performance orbital analysis for research and education.
 
-*Developed for conjunction assessment, constellation design, and orbital mechanics research.*
+_Developed for conjunction assessment, constellation design, and orbital mechanics research._
