@@ -3,7 +3,6 @@ import os
 import logging
 import numpy as np
 
-from ..constants import DRY_MASS, INITIAL_FUEL
 from .propagator import rk4_step, propagate_batch_numpy
 
 logger = logging.getLogger(__name__)
@@ -68,8 +67,8 @@ def propagate(state: list, dt_seconds: float, mjd0: float = 0.0) -> list:
     if _HAS_CPP:
         try:
             return list(_physics.Propagator().propagate(state, dt_seconds, mjd0))
-        except Exception:
-            logger.warning("C++ propagate failed, falling back")
+        except Exception as e:
+            logger.warning("C++ propagate failed, falling back: %s", e, exc_info=True)
     return list(rk4_step(tuple(state), dt_seconds, mjd0))
 
 
@@ -89,8 +88,10 @@ def propagate_with_drag(
                     state, dt_seconds, area, mass, cd, cr, mjd0
                 )
             )
-        except Exception:
-            logger.warning("C++ propagate_with_drag failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "C++ propagate_with_drag failed, falling back: %s", e, exc_info=True
+            )
     return list(rk4_step(tuple(state), dt_seconds, mjd0, 0, area, mass, cd, cr))
 
 
@@ -112,8 +113,10 @@ def propagate_steps(
                     state, total_seconds, step_size, area, mass, cd, cr, with_drag, mjd0
                 )
             )
-        except Exception:
-            logger.warning("C++ propagate_steps failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "C++ propagate_steps failed, falling back: %s", e, exc_info=True
+            )
     curr = tuple(state)
     rem = total_seconds
     steps_taken = 0
@@ -142,20 +145,14 @@ def propagate_batch(
 
     if _HAS_CUDA:
         try:
-            try:
-                res = _physics.cuda_propagate_batch_soa(
-                    arr, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0
-                )
-            except (AttributeError, Exception):
-                if with_drag:
-                    res = _physics.cuda_propagate_batch_drag(
-                        arr, dt_seconds, steps, area, mass, cd, cr, mjd0
-                    )
-                else:
-                    res = _physics.cuda_propagate_batch(arr, dt_seconds, steps, mjd0)
+            res = _physics.cuda_propagate_batch_soa(
+                arr, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0
+            )
             return res.tolist()
-        except Exception:
-            logger.warning("CUDA propagate_batch failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "CUDA propagate_batch failed, falling back: %s", e, exc_info=True
+            )
 
     if _HAS_BATCH_CPP:
         try:
@@ -167,8 +164,10 @@ def propagate_batch(
             else:
                 res = prop.batch_propagate_steps(arr, dt_seconds, steps, mjd0)
             return res.tolist()
-        except Exception:
-            logger.warning("C++ batch_propagate_steps failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "C++ batch_propagate_steps failed, falling back: %s", e, exc_info=True
+            )
 
     return propagate_batch_numpy(
         states, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0
@@ -193,16 +192,22 @@ def propagate_batch_full_history(
             return _physics.cuda_propagate_full_history(
                 arr, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0
             )
-        except Exception:
-            logger.warning("CUDA propagate_full_history failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "CUDA propagate_full_history failed, falling back: %s", e, exc_info=True
+            )
 
     if _HAS_BATCH_CPP:
         try:
             return _physics.Propagator().batch_propagate_full_history(
                 arr, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0
             )
-        except Exception:
-            logger.warning("C++ batch_propagate_full_history failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "C++ batch_propagate_full_history failed, falling back: %s",
+                e,
+                exc_info=True,
+            )
 
     n = len(states)
     history = np.zeros((steps + 1, n, 6))
@@ -219,6 +224,36 @@ def propagate_batch_full_history(
     return history
 
 
+def _cpp_warnings_to_py(warnings: list) -> list:
+    """Convert C++ ConjunctionWarning objects (with C++ Severity enum) to
+    Python ConjunctionWarning dataclass instances (with StrEnum Severity)."""
+    from .conjunction import (
+        ConjunctionWarning as PyWarning,
+        Severity as PySeverity,
+        PcResult,
+    )
+
+    _CPP_TO_PY = {
+        _physics.Severity.NONE: PySeverity.NONE,
+        _physics.Severity.ADVISORY: PySeverity.ADVISORY,
+        _physics.Severity.WARNING: PySeverity.WARNING,
+        _physics.Severity.CRITICAL: PySeverity.CRITICAL,
+    }
+    result = []
+    for w in warnings:
+        pw = PyWarning(
+            sat_id=w.sat_id,
+            debris_id=w.debris_id,
+            current_distance=w.current_distance,
+            time_to_closest_approach=w.time_to_closest_approach,
+            severity=_CPP_TO_PY.get(w.severity, PySeverity.NONE),
+            relative_velocity=list(w.relative_velocity),
+            pc_result=PcResult(pc=w.pc, sigma_pos_km=w.pc_sigma_km),
+        )
+        result.append(pw)
+    return result
+
+
 def detect_conjunctions(
     sat_states: list,
     debris_states: list,
@@ -230,21 +265,25 @@ def detect_conjunctions(
         try:
             s_arr = np.array(sat_states, dtype=np.float64)
             d_arr = np.array(debris_states, dtype=np.float64)
-            return _physics.cuda_detect_conjunctions(
-                s_arr, d_arr, lookahead, step_s, mjd0
+            return _cpp_warnings_to_py(
+                _physics.cuda_detect_conjunctions(s_arr, d_arr, lookahead, step_s, mjd0)
             )
-        except Exception:
-            logger.warning("CUDA detect_conjunctions failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "CUDA detect_conjunctions failed, falling back: %s", e, exc_info=True
+            )
 
     if _HAS_CPP:
         try:
             s_arr = np.array(sat_states, dtype=np.float64)
             d_arr = np.array(debris_states, dtype=np.float64)
-            return _physics.ConjunctionDetector().detect(
-                s_arr, d_arr, lookahead, step_s
+            return _cpp_warnings_to_py(
+                _physics.ConjunctionDetector().detect(s_arr, d_arr, lookahead, step_s)
             )
-        except Exception:
-            logger.warning("C++ detect_conjunctions failed, falling back")
+        except Exception as e:
+            logger.warning(
+                "C++ detect_conjunctions failed, falling back: %s", e, exc_info=True
+            )
 
     from .conjunction import ConjunctionDetector as PyConjunctionDetector
 

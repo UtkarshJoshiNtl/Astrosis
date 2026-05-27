@@ -150,22 +150,17 @@ def bench_batch_propagation(n: int, steps: int) -> BenchResult:
     if _HAS_CUDA:
         arr_cuda = np.array(sats, dtype=np.float64)
         
-        # 1. AoS
-        def cuda_aos():
-            _cpp.cuda_propagate_batch(arr_cuda, dt, steps)
-        r.cuda_s = _t(cuda_aos)
-        
-        # 2. SoA (for note)
+        # 1. SoA
         def cuda_soa():
-            _cpp.cuda_propagate_batch_soa(arr_cuda, dt, steps)
-        t_soa = _t(cuda_soa)
+            _cpp.cuda_propagate_batch_soa(arr_cuda, dt, steps, 0, 1, 2.2, 1.5, False, 0)
+        r.cuda_s = _t(cuda_soa)
         
-        # 3. Streamed
+        # 2. Streamed
         def cuda_stream():
-            _cpp.cuda_propagate_batch_streamed(arr_cuda, dt, steps)
+            _cpp.cuda_propagate_batch_streamed(arr_cuda, dt, steps, 0, 1, 2.2, 1.5, False, 0)
         t_stream = _t(cuda_stream)
         
-        r.note = f"AoS: {r.cuda_s*1000:.1f}ms | SoA: {t_soa*1000:.1f}ms | Stream: {t_stream*1000:.1f}ms"
+        r.note = f"SoA: {r.cuda_s*1000:.1f}ms | Stream: {t_stream*1000:.1f}ms"
     return r
 
 
@@ -296,7 +291,7 @@ def print_footer(results: List[BenchResult]):
 def main(quick: bool = False):
     if _HAS_CUDA:
         # Warmup CUDA context
-        _cpp.cuda_propagate_batch([[RE+400, 0, 0, 0, 7.6, 0]], 10.0, 1)
+        _cpp.cuda_propagate_batch_soa(np.array([[RE+400, 0, 0, 0, 7.6, 0]]), 10.0, 1, 0, 1, 2.2, 1.5, False, 0)
 
     print_header()
     results = []

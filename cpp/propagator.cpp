@@ -88,8 +88,10 @@ static std::array<double, 3> moon_position_eci(double mjd) {
 
 static void add_third_body(double& ax, double& ay, double& az, const std::array<double,3>& r, const std::array<double,3>& rb, double mu_body) {
     double dx = rb[0] - r[0], dy = rb[1] - r[1], dz = rb[2] - r[2];
-    double d3 = std::pow(dx*dx + dy*dy + dz*dz, 1.5);
-    double rb3 = std::pow(rb[0]*rb[0] + rb[1]*rb[1] + rb[2]*rb[2], 1.5);
+    double d_mag = std::sqrt(dx*dx + dy*dy + dz*dz);
+    double d3 = d_mag * d_mag * d_mag;
+    double rb_mag = std::sqrt(rb[0]*rb[0] + rb[1]*rb[1] + rb[2]*rb[2]);
+    double rb3 = rb_mag * rb_mag * rb_mag;
     ax += mu_body * (dx/d3 - rb[0]/rb3);
     ay += mu_body * (dy/d3 - rb[1]/rb3);
     az += mu_body * (dz/d3 - rb[2]/rb3);
@@ -437,6 +439,13 @@ PYBIND11_MODULE(physics_engine, m) {
         }, py::arg("states"), py::arg("dt_seconds"), py::arg("steps"), 
            py::arg("area") = 0.0, py::arg("mass") = 1.0, py::arg("cd") = 2.2, py::arg("cr") = 1.5, py::arg("with_drag") = false, py::arg("mjd0") = 0.0);
 
+    // Severity enum
+    py::enum_<Severity>(m, "Severity")
+        .value("NONE", Severity::NONE)
+        .value("ADVISORY", Severity::ADVISORY)
+        .value("WARNING", Severity::WARNING)
+        .value("CRITICAL", Severity::CRITICAL);
+
     // ConjunctionWarning
     py::class_<ConjunctionWarning>(m, "ConjunctionWarning")
         .def(py::init<>())
@@ -452,7 +461,7 @@ PYBIND11_MODULE(physics_engine, m) {
             return "<ConjunctionWarning sat=" + std::to_string(w.sat_id)
                  + " debris=" + std::to_string(w.debris_id)
                  + " dist=" + std::to_string(w.current_distance)
-                 + " km sev=" + w.severity
+                 + " km sev=" + severity_to_string(w.severity)
                  + " Pc=" + std::to_string(w.pc_result.pc) + ">";
         });
 
@@ -503,19 +512,6 @@ PYBIND11_MODULE(physics_engine, m) {
     m.def("cuda_device_count", &cuda_device_count);
     m.def("cuda_print_device_info", &cuda_print_device_info);
 
-    m.def("cuda_propagate_batch", [](py::array_t<double> states, double dt, int steps, double mjd0) {
-        auto buf = states.request();
-        if (buf.ndim != 2 || buf.shape[1] != 6) throw std::runtime_error("States must be (N, 6)");
-        int n = (int)buf.shape[0];
-        // If the array is contiguous, we can pass the pointer directly
-        double* ptr = (double*)buf.ptr;
-        {
-            py::gil_scoped_release release;
-            cuda_propagate_batch(ptr, n, dt, steps, mjd0);
-        }
-        return states; // Return the same array since it was modified in-place
-    }, py::arg("states"), py::arg("dt_seconds"), py::arg("steps"), py::arg("mjd0") = 0.0);
-
     m.def("cuda_propagate_batch_soa", [](py::array_t<double> states, double dt, int steps, double area, double mass, double cd, double cr, bool with_drag, double mjd0) {
         auto buf = states.request();
         if (buf.ndim != 2 || buf.shape[1] != 6) throw std::runtime_error("States must be (N, 6)");
@@ -525,27 +521,14 @@ PYBIND11_MODULE(physics_engine, m) {
         return states;
     }, py::arg("states"), py::arg("dt_seconds"), py::arg("steps"), py::arg("area") = 0.0, py::arg("mass") = 1.0, py::arg("cd") = 2.2, py::arg("cr") = 1.5, py::arg("with_drag") = false, py::arg("mjd0") = 0.0);
 
-    m.def("cuda_propagate_batch_streamed", [](py::array_t<double> states, double dt, int steps, double mjd0) {
+    m.def("cuda_propagate_batch_streamed", [](py::array_t<double> states, double dt, int steps, double area, double mass, double cd, double cr, bool with_drag, double mjd0) {
         auto buf = states.request();
         if (buf.ndim != 2 || buf.shape[1] != 6) throw std::runtime_error("States must be (N, 6)");
         int n = (int)buf.shape[0];
         double* ptr = (double*)buf.ptr;
-        { py::gil_scoped_release release; cuda_propagate_batch_streamed(ptr, n, dt, steps, mjd0); }
+        { py::gil_scoped_release release; cuda_propagate_batch_streamed(ptr, n, dt, steps, area, mass, cd, cr, with_drag, mjd0); }
         return states;
-    }, py::arg("states"), py::arg("dt_seconds"), py::arg("steps"), py::arg("mjd0") = 0.0);
-
-    m.def("cuda_propagate_batch_drag", [](py::array_t<double> states, double dt, int steps, 
-                                          double area, double mass, double cd, double cr, double mjd0) {
-        auto buf = states.request();
-        int n = (int)buf.shape[0];
-        double* ptr = (double*)buf.ptr;
-        {
-            py::gil_scoped_release release;
-            cuda_propagate_batch_drag(ptr, n, dt, steps, area, mass, cd, cr, mjd0);
-        }
-        return states;
-    }, py::arg("states"), py::arg("dt_seconds"), py::arg("steps"),
-       py::arg("area"), py::arg("mass"), py::arg("cd"), py::arg("cr") = 1.5, py::arg("mjd0") = 0.0);
+    }, py::arg("states"), py::arg("dt_seconds"), py::arg("steps"), py::arg("area") = 0.0, py::arg("mass") = 1.0, py::arg("cd") = 2.2, py::arg("cr") = 1.5, py::arg("with_drag") = false, py::arg("mjd0") = 0.0);
 
     m.def("cuda_propagate_full_history", [](py::array_t<double> states, double dt, int steps, double area, double mass, double cd, double cr, bool with_drag, double mjd0) {
         auto buf = states.request();

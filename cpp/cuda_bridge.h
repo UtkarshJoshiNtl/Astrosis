@@ -23,16 +23,13 @@ inline void cuda_print_device_info() {}
 
 // ── Batch Propagation ─────────────────────────────────────────────────────────
 #ifdef USE_CUDA
-void cuda_propagate_batch(double* states_inout, int n, double dt_seconds, int steps, double mjd0);
-
-void cuda_propagate_batch_drag(double* states_inout, int n, double dt_seconds, int steps,
-                               double area, double mass, double cd, double cr, double mjd0);
-
 void cuda_propagate_batch_soa(double* states_inout, int n, double dt_seconds, int steps,
                                double area, double mass, double cd, double cr, bool with_drag,
                                double mjd0);
 
-void cuda_propagate_batch_streamed(double* states_inout, int n, double dt_seconds, int steps, double mjd0);
+void cuda_propagate_batch_streamed(double* states_inout, int n, double dt_seconds, int steps,
+                                    double area, double mass, double cd, double cr, bool with_drag,
+                                    double mjd0);
 
 void cuda_propagate_full_history(const double* initial_states, int n,
                                  double dt_seconds, int steps, 
