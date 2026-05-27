@@ -48,6 +48,7 @@ Dual-language monorepo:
 - **RAII wrappers** in `cpp/cuda_physics.cuh`: `DeviceMem` (cudaMalloc/cudaFree) and `HostPinnedMem` (cudaHostAlloc/cudaFreeHost) prevent GPU memory leaks on exception — use them instead of raw cudaMalloc in CUDA host functions
 - **C++ conjunction Brent refinement** propagates from the saved bracket-left state (`sat_lo`/`deb_lo`) instead of re-propagating from t=0 — limits propagation to at most 2× step_s per evaluation
 - **Tempated Brent minimiser** in `conjunction.cpp` (`brent_minimise<F>`) avoids `std::function` heap allocation
+- **CUDA conjunction pre-propagation** in `cuda_conjunction.cu`: `k_prepropagate` stores full trajectory in SoA layout per timestep; `k_scan_pairs` then scans all pairs with coalesced reads. Reduces propagation cost from O(ns×nd×nsteps) to O((ns+nd)×nsteps) — ~250× for 500×500 sats.
 
 ## Frontend gotchas
 
