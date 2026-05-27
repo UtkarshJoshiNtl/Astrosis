@@ -21,6 +21,24 @@ class ManeuverCalculator:
     def calculate(
         self, sat_state: List[float], warning: ConjunctionWarning
     ) -> ManeuverPlan:
+        """
+        Compute an evasion-recovery maneuver pair for a conjunction.
+
+        Evasion burn is perpendicular to the relative velocity (cross-track)
+        to maximize miss distance per unit delta-V. Recovery burn reverses
+        the evasion after the conjunction passes.
+
+        Fuel cost sums evasion + recovery — total mass (dry + fuel) is used
+        for the Tsiolkovsky calculation (recovery burn accounts for mass lost
+        during evasion).
+
+        Args:
+            sat_state: Satellite ECI state [x, y, z, vx, vy, vz] at TCA.
+            warning: ConjunctionWarning from detction scan.
+
+        Returns:
+            ManeuverPlan with delta-V vectors (ECI), fuel cost, and timing.
+        """
         r = np.array(sat_state[:3])
         rv = np.array(warning.relative_velocity)
         rv_mag = np.linalg.norm(rv)

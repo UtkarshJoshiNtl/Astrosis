@@ -156,6 +156,25 @@ def rk4_step(
     cd: float = 2.2,
     cr: float = 1.5,
 ) -> tuple:
+    """
+    Fixed-step RK4 integration (one step).
+
+    J2-J4 perturbations applied unconditionally. Lunisolar/SRP gated by
+    mjd0 > 0. Atmospheric drag gated by area > 0 and altitude < 1000 km.
+
+    Args:
+        state: (x, y, z, vx, vy, vz) in km and km/s.
+        dt: Time step in seconds.
+        mjd0: Modified Julian Date (0 to skip lunisolar/SRP).
+        current_step: Step index for MJD computation.
+        area: Cross-sectional area in m² (0 to skip drag).
+        mass: Spacecraft mass in kg.
+        cd: Drag coefficient.
+        cr: Reflectivity coefficient.
+
+    Returns:
+        Propagated state tuple of 6 floats.
+    """
     def accel(r, v, local_mjd):
         x, y, z = r[0], r[1], r[2]
         r_mag = math.sqrt(x * x + y * y + z * z)

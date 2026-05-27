@@ -65,6 +65,19 @@ def backend_info() -> dict:
 
 
 def propagate(state: list, dt_seconds: float, mjd0: float = 0.0) -> list:
+    """
+    Propagate a single state vector forward by dt_seconds.
+
+    Uses C++ backend if available, falls back to pure Python RK4.
+
+    Args:
+        state: ECI state [x, y, z, vx, vy, vz] in km and km/s.
+        dt_seconds: Time step in seconds.
+        mjd0: Modified Julian Date at epoch (0 = no lunisolar/SRP).
+
+    Returns:
+        Propagated state list of 6 floats.
+    """
     if _HAS_CPP:
         try:
             return list(_physics.Propagator().propagate(state, dt_seconds, mjd0))
@@ -82,6 +95,21 @@ def propagate_with_drag(
     cr: float = 1.5,
     mjd0: float = 0.0,
 ) -> list:
+    """
+    Propagate a single state with drag and SRP.
+
+    Args:
+        state: ECI state [x, y, z, vx, vy, vz] in km and km/s.
+        dt_seconds: Time step in seconds.
+        area: Cross-sectional area in m².
+        mass: Spacecraft mass in kg.
+        cd: Drag coefficient.
+        cr: Reflectivity coefficient.
+        mjd0: Modified Julian Date (0 = no lunisolar).
+
+    Returns:
+        Propagated state list of 6 floats.
+    """
     if _HAS_CPP:
         try:
             return list(
@@ -142,6 +170,26 @@ def propagate_batch(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> list:
+    """
+    Propagate multiple state vectors for a fixed number of steps.
+
+    Automatically selects the fastest available backend:
+    CUDA (SoA) → C++/OpenMP → NumPy → pure Python.
+
+    Args:
+        states: List of ECI state vectors, each [x, y, z, vx, vy, vz].
+        dt_seconds: Time step in seconds.
+        steps: Number of integration steps.
+        area: Cross-sectional area in m² for drag/SRP.
+        mass: Spacecraft mass in kg.
+        cd: Drag coefficient.
+        cr: Reflectivity coefficient.
+        with_drag: Enable atmospheric drag and SRP.
+        mjd0: Modified Julian Date (0 = no lunisolar).
+
+    Returns:
+        List of propagated state vectors.
+    """
     arr = np.array(states, dtype=np.float64)
 
     if _HAS_CUDA:
@@ -262,6 +310,25 @@ def detect_conjunctions(
     step_s: float = 60.0,
     mjd0: float = 0.0,
 ) -> list:
+    """
+    Screen all satellite-debris pairs for conjunctions within lookahead window.
+
+    CUDA path uses 2-phase algorithm: pre-propagate all objects once,
+    then scan pairs with coalesced SoA reads (O((ns+nd)*nsteps) pre-prop +
+    O(ns*nd*nsteps) distance-only scan — ~250x faster for 500x500).
+
+    Falls back through C++ → pure Python.
+
+    Args:
+        sat_states: List of satellite ECI state vectors.
+        debris_states: List of debris ECI state vectors.
+        lookahead: Lookahead window in seconds.
+        step_s: Time step for temporal sweep in seconds.
+        mjd0: Modified Julian Date at epoch.
+
+    Returns:
+        List of ConjunctionWarning dataclass instances.
+    """
     if _HAS_CUDA:
         try:
             s_arr = np.array(sat_states, dtype=np.float64)

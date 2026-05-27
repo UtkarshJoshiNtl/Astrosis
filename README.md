@@ -153,18 +153,18 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # 3. Install Python dependencies
 pip install -r requirements.txt
-pnpm install  # Install Node dependencies
 
 # 4. Build C++/CUDA backends (optional but ~500× faster)
 ./build-backends.sh
 
 # 5. Quick start
 ./run.sh
-# Select option 1 for CLI mode or option 2 for Frontend + Backend
+# Select option 1 for CLI or option 2 for frontend+backend
 
-# Manual startup:
-# CLI: python3 main.py fetch --id 25544
-# Frontend + Backend: Run ./run.sh and select option 2
+# Manual CLI:
+python3 main.py fetch --id 25544   # Fetch ISS TLE
+python3 main.py run --steps 8640   # Propagate
+python3 main.py --mock-gpu run --steps 100  # Force CPU backend
 ```
 
 ### Python API Example
@@ -248,17 +248,14 @@ Orbital state spans 13 orders of magnitude (position ~1 m, velocity ~7 km/s). FP
 
 ```bash
 # Unit tests
-python -m pytest tests/
+python -m pytest tests/test_correctness.py -v
 
 # Physics validation (analytical baselines)
 python validation/validate_physics.py --test energy --hours 24
 python validation/sgp4_vs_rk4.py --id 25544
 
-# Performance regression
-python benchmarks/benchmark.py --repeat 100
-
-# Monte Carlo ensemble
-python validation/test_monte_carlo.py --cases 100 --hours 72
+# Performance benchmark
+python benchmarks/benchmark.py --quick
 ```
 
 ---

@@ -6,6 +6,18 @@ __all__ = ["sun_position_eci", "moon_position_eci"]
 
 
 def sun_position_eci(mjd: float) -> tuple:
+    """
+    Low-precision solar position in ECI.
+
+    Accuracy ~0.01° (adequate for lunisolar perturbations and eclipse checks).
+    Based on Montenbruck & Gill (2000) analytical model.
+
+    Args:
+        mjd: Modified Julian Date.
+
+    Returns:
+        Tuple (x, y, z) in km.
+    """
     d = mjd - 51544.5
     g = 357.529 + 0.98560028 * d
     g_rad = math.radians(g)
@@ -23,6 +35,18 @@ def sun_position_eci(mjd: float) -> tuple:
 
 
 def moon_position_eci(mjd: float) -> tuple:
+    """
+    Low-precision lunar position in ECI.
+
+    Accuracy ~0.1° (adequate for lunisolar perturbations).
+    Based on Montenbruck & Gill (2000) analytical model.
+
+    Args:
+        mjd: Modified Julian Date.
+
+    Returns:
+        Tuple (x, y, z) in km.
+    """
     d = mjd - 51544.5
     L = 218.316 + 13.176396 * d
     M = 134.963 + 13.064993 * d
