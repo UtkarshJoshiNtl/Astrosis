@@ -27,8 +27,9 @@ def _load_physics():
 
 _physics = _load_physics()
 
+_MOCK_GPU = os.environ.get("ASTROSIS_MOCK_GPU", "").lower() in ("1", "true", "yes")
 _HAS_CPP = _physics is not None
-_HAS_CUDA = _HAS_CPP and getattr(_physics, "cuda_available", lambda: False)()
+_HAS_CUDA = _HAS_CPP and not _MOCK_GPU and getattr(_physics, "cuda_available", lambda: False)()
 _HAS_BATCH_CPP = _HAS_CPP and hasattr(_physics.Propagator, "batch_propagate_steps")
 
 if _HAS_CUDA:

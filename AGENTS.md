@@ -49,6 +49,7 @@ Dual-language monorepo:
 - **C++ conjunction Brent refinement** propagates from the saved bracket-left state (`sat_lo`/`deb_lo`) instead of re-propagating from t=0 — limits propagation to at most 2× step_s per evaluation
 - **Tempated Brent minimiser** in `conjunction.cpp` (`brent_minimise<F>`) avoids `std::function` heap allocation
 - **CUDA conjunction pre-propagation** in `cuda_conjunction.cu`: `k_prepropagate` stores full trajectory in SoA layout per timestep; `k_scan_pairs` then scans all pairs with coalesced reads. Reduces propagation cost from O(ns×nd×nsteps) to O((ns+nd)×nsteps) — ~250× for 500×500 sats.
+- **Mock GPU** via `ASTROSIS_MOCK_GPU=1` env var or `python main.py --mock-gpu` — forces CPU backend even when GPU is available.
 
 ## Frontend gotchas
 

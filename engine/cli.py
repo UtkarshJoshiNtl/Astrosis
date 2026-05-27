@@ -1,12 +1,9 @@
 import argparse
 import sys
+import os
 import logging
 import json
 from datetime import datetime, timezone
-
-from .io.data import tle_ingestor
-from .simulation import SimulationContext
-from .geo.analysis import report_passes
 
 
 def main():
@@ -17,6 +14,8 @@ def main():
         description="Astrosis Orbital Simulator & Analysis Engine"
     )
     parser.add_argument("--version", action="version", version="Astrosis 0.1.0")
+    parser.add_argument("--mock-gpu", action="store_true",
+                        help="Force CPU backend (skip CUDA even if GPU available)")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     fetch_parser = subparsers.add_parser("fetch", help="Fetch and cache TLE data")
@@ -50,7 +49,15 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "fetch":
+    if args.mock_gpu:
+        os.environ["ASTROSIS_MOCK_GPU"] = "1"
+        logger.info("Mock GPU enabled — forcing CPU backend")
+
+    # Deferred imports: engine/simulation.py -> accelerator.py loads at import time,
+    # so we must set MOCK_GPU env var before importing engine modules.
+    from .io.data import tle_ingestor
+    from .simulation import SimulationContext
+    from .geo.analysis import report_passes
         satellites = tle_ingestor.get_satellites(
             satellite_id=args.id, force_refresh=args.force
         )
