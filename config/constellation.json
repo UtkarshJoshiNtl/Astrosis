@@ -1,0 +1,11 @@
+{
+  "_description": "Demo constellation: 500 synthetic satellites in LEO",
+  "_note": "Generated at server start if this file is missing. Modify this file and restart to change the constellation.",
+  "count": 500,
+  "altitude_base_km": 6378.137,
+  "altitude_offset_min": 400,
+  "altitude_offset_step": 50,
+  "velocity_base_kms": 7.5,
+  "velocity_step_kms": 0.1,
+  "satellites": []
+}

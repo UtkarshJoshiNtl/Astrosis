@@ -5,11 +5,13 @@ FastAPI server wrapping the Astrosis orbital mechanics engine.
 """
 
 import math
+import json
 import sys
 import os
 import logging
+import time
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List
+from typing import Optional, List, Any
 
 import numpy as np
 import httpx
@@ -22,9 +24,9 @@ from sgp4.api import Satrec, jday
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from engine.constants import MU, RE
-from engine.core.accelerator import backend_info, propagate_batch
+from engine.core.accelerator import backend_info, propagate_batch, propagate_batch_full_history
 from engine.io.data import tle_ingestor
-from engine.geo.frames import eci_to_ecef, topocentric_aer
+from engine.geo.frames import eci_to_ecef, topocentric_aer, julian_date, equation_of_equinoxes, teme_to_eci
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger("astrosis-server")
@@ -37,17 +39,73 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Synthetic initial constellation (500 demo satellites) ──
+# ── Ephemeris cache (in-process dict + TTL) ──
 
-INITIAL_SATS = []
-for i in range(500):
-    r = RE + 400 + (i % 10) * 50
-    v = 7.5 + (i % 5) * 0.1
-    INITIAL_SATS.append([r, 0, 0, 0, v * 0.5, v * 0.866])
+_EPHEMERIS_CACHE: dict[str, Any] = {}
+_CACHE_TTL_S = 60.0  # seconds before cache is considered stale
+
+
+def _cache_get(key: str) -> Optional[Any]:
+    entry = _EPHEMERIS_CACHE.get(key)
+    if entry is None:
+        return None
+    if time.monotonic() - entry["ts"] > _CACHE_TTL_S:
+        del _EPHEMERIS_CACHE[key]
+        return None
+    return entry["data"]
+
+
+def _cache_set(key: str, data: Any) -> None:
+    _EPHEMERIS_CACHE[key] = {"ts": time.monotonic(), "data": data}
+
+
+def _backend_fields() -> dict:
+    """Return backend info fields for inclusion in API responses."""
+    info = backend_info() if callable(backend_info) else {}
+    return {
+        "backend": info.get("active", "python"),
+        "backend_description": info.get("description", "Python / NumPy"),
+        "cuda_available": bool(info.get("cuda", False)),
+        "cuda_device": info.get("cuda_device"),
+    }
+
+
+# ── Load synthetic constellation from config file ──
+
+_CONSTELLATION_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "config", "constellation.json"
+)
+
+
+def _load_constellation() -> list:
+    """Load or generate the demo constellation."""
+    try:
+        with open(_CONSTELLATION_PATH) as f:
+            cfg = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        cfg = {"count": 500, "altitude_base_km": RE, "altitude_offset_min": 400,
+               "altitude_offset_step": 50, "velocity_base_kms": 7.5, "velocity_step_kms": 0.1}
+
+    sats = []
+    base_r = cfg.get("altitude_base_km", RE)
+    off_min = cfg.get("altitude_offset_min", 400)
+    off_step = cfg.get("altitude_offset_step", 50)
+    v_base = cfg.get("velocity_base_kms", 7.5)
+    v_step = cfg.get("velocity_step_kms", 0.1)
+    count = cfg.get("count", 500)
+
+    for i in range(count):
+        r = base_r + off_min + (i % 10) * off_step
+        v = v_base + (i % 5) * v_step
+        sats.append([r, 0, 0, 0, v * 0.5, v * 0.866])
+    return sats
+
+
+INITIAL_SATS = _load_constellation()
 
 
 def _enrich(state: list) -> dict:
-    x, y, z, vx, vy, vz = state[:6]
+    x, y, z, vx, vy, vz = state
     r = math.sqrt(x * x + y * y + z * z)
     v = math.sqrt(vx * vx + vy * vy + vz * vz)
     hx = y * vz - z * vy
@@ -57,7 +115,7 @@ def _enrich(state: list) -> dict:
     incl = math.degrees(math.acos(max(-1.0, min(1.0, hz / h))))
     denom = 2.0 / r - v * v / MU
     a = 1.0 / denom if denom > 0 else float("nan")
-    period_min = (2 * math.pi * math.sqrt(a ** 3 / MU)) / 60.0 if a == a and a > 0 else None
+    period_min = (2 * math.pi * math.sqrt(a ** 3 / MU)) / 60.0 if not math.isnan(a) and a > 0 else None
     return {
         "pos": [x, y, z],
         "vel": [vx, vy, vz],
@@ -65,41 +123,13 @@ def _enrich(state: list) -> dict:
         "speed_kms": v,
         "inclination_deg": incl,
         "period_min": period_min,
-        "sma_km": a if a == a else None,
+        "sma_km": a if not math.isnan(a) else None,
     }
 
 
 # ── Julian Date / TEME→ECI helpers ──
-
-
-def _julian_date(dt: datetime) -> float:
-    y, m = dt.year, dt.month
-    if m <= 2:
-        y -= 1
-        m += 12
-    d = dt.day + (dt.hour + dt.minute / 60.0 + (dt.second + dt.microsecond / 1e6) / 3600.0) / 24.0
-    a = y // 100
-    b = 2 - a + a // 4
-    return int(365.25 * (y + 4716)) + int(30.6001 * (m + 1)) + d + b - 1524.5
-
-
-def _equation_of_equinoxes(dt: datetime) -> float:
-    jd = _julian_date(dt)
-    t = (jd - 2451545.0) / 36525.0
-    omega = math.radians(125.04452 - 1934.136261 * t)
-    l = math.radians(280.4665 + 36000.7698 * t)
-    dpsi = (-17.20 * math.sin(omega) - 1.32 * math.sin(2.0 * l)) / 3600.0
-    eps = math.radians((84381.448 - 46.8150 * t) / 3600.0)
-    return math.radians(dpsi * math.cos(eps))
-
-
-def _teme_to_eci(r: list, v: list, dt: datetime) -> tuple:
-    theta = _equation_of_equinoxes(dt)
-    c, s = math.cos(theta), math.sin(theta)
-    return (
-        [c * r[0] - s * r[1], s * r[0] + c * r[1], r[2]],
-        [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]],
-    )
+# Both julian_date() and equation_of_equinoxes() are imported from engine.geo.frames,
+# which also provides teme_to_eci() with the correct velocity transport term.
 
 
 def _load_tle_state(norad: int) -> tuple:
@@ -113,8 +143,8 @@ def _load_tle_state(norad: int) -> tuple:
     err, rt, vt = satrec.sgp4(jd, jf)
     if err != 0:
         raise HTTPException(500, f"SGP4 propagation error (code {err})")
-    re, ve = _teme_to_eci(list(rt), list(vt), now)
-    return re + ve, tle, now
+    re, ve = teme_to_eci(np.array(rt), np.array(vt), now)
+    return re.tolist() + ve.tolist(), tle, now
 
 
 # ── API Endpoints ────────────────────────────────────────────────────────────
@@ -124,11 +154,8 @@ def _load_tle_state(norad: int) -> tuple:
 async def health():
     info = backend_info() if callable(backend_info) else {}
     return {
-        "backend": info.get("description", "Python / NumPy"),
-        "backend_kind": info.get("active", "python"),
+        **_backend_fields(),
         "engine_version": "0.1.0",
-        "cuda_available": bool(info.get("cuda", False)),
-        "cuda_device": info.get("cuda_device"),
         "ok": True,
     }
 
@@ -176,15 +203,21 @@ async def proxy_tle(group: str = "active"):
 
 @app.get("/api/constellation")
 async def constellation(n: int = 500):
+    cache_key = f"constellation:{n}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     states = propagate_batch(INITIAL_SATS[: min(n, len(INITIAL_SATS))], dt_seconds=60, steps=1)
-    info = backend_info() if callable(backend_info) else {}
-    return {
+    result = {
+        **_backend_fields(),
         "epoch": datetime.now(timezone.utc).isoformat(),
         "count": len(states),
         "source": "live",
-        "backend": info.get("description", "Python"),
         "satellites": [{"id": i, **_enrich(s)} for i, s in enumerate(states)],
     }
+    _cache_set(cache_key, result)
+    return result
 
 
 @app.get("/api/catalog/{norad}")
@@ -207,6 +240,7 @@ async def catalog_entry(norad: int):
     sma = (MU / (n_rad_s * n_rad_s)) ** (1.0 / 3.0)
 
     return {
+        **_backend_fields(),
         "norad": norad,
         "name": tle["satellite_name"],
         "tle": [l1, l2],
@@ -247,18 +281,20 @@ async def propagate(req: PropagateReq):
         steps = 1
     steps = min(steps, 10000)
 
+    history = propagate_batch_full_history([state], dt_seconds=req.dt_seconds, steps=steps)
+
     ephemeris = []
-    current = [state]
-    for k in range(steps):
-        current = propagate_batch(current, dt_seconds=req.dt_seconds, steps=1)
-        t = epoch + timedelta(seconds=(k + 1) * req.dt_seconds)
+    for k in range(1, steps + 1):
+        t = epoch + timedelta(seconds=k * req.dt_seconds)
+        s = history[k, 0]
         ephemeris.append({
             "t": t.isoformat(),
-            "pos": current[0][:3],
-            "vel": current[0][3:6],
+            "pos": s[:3].tolist(),
+            "vel": s[3:6].tolist(),
         })
 
     return {
+        **_backend_fields(),
         "norad": req.norad,
         "ephemeris": ephemeris,
         "dt_seconds": req.dt_seconds,
@@ -284,16 +320,19 @@ async def predict_passes(req: PassesReq):
     dt_step = 30.0
     steps = int(req.hours * 3600 / dt_step)
 
+    history = propagate_batch_full_history(
+        [state], dt_seconds=dt_step, steps=steps
+    )
+
     passes_out = []
     cur_pass = None
-    current = [state]
     t = epoch
 
-    for step in range(steps):
-        current = propagate_batch(current, dt_seconds=dt_step, steps=1)
+    for step in range(1, steps + 1):
         t += timedelta(seconds=dt_step)
+        s = history[step, 0]
 
-        r_eci = np.array(current[0][:3])
+        r_eci = s[:3]
         r_ecef = eci_to_ecef(r_eci, t)
         az, el, _ = topocentric_aer(r_ecef, lat_r, lon_r, alt_km)
         el_deg = float(np.degrees(el))
@@ -332,7 +371,7 @@ async def predict_passes(req: PassesReq):
             "duration_s": (e - s).total_seconds(),
         })
 
-    return passes_out
+    return {**_backend_fields(), "passes": passes_out, "norad": req.norad}
 
 
 class ConjReq(BaseModel):
@@ -377,7 +416,7 @@ async def conjunctions(req: ConjReq):
         # Skip self-conjunctions (same satellite)
         if sat_ids[w.sat_id] == sat_ids[w.debris_id]:
             continue
-        
+
         results.append({
             "a": sat_ids[w.sat_id],
             "b": sat_ids[w.debris_id],
@@ -386,8 +425,8 @@ async def conjunctions(req: ConjReq):
             "rel_vel_kms": math.sqrt(sum(v*v for v in w.relative_velocity)),
             "pc": w.pc if w.pc_result.computed else None,
         })
-    
-    return results
+
+    return {**_backend_fields(), "results": results}
 
 
 class HohmannReq(BaseModel):
@@ -411,6 +450,7 @@ async def hohmann(req: HohmannReq):
     transfer_time = math.pi * math.sqrt(a_t ** 3 / MU)
 
     result = {
+        **_backend_fields(),
         "r1_km": req.r1_km,
         "r2_km": req.r2_km,
         "dv1_kms": round(dv1, 6),

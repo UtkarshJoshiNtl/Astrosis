@@ -7,18 +7,15 @@ set(CMAKE_CXX_STANDARD 17)
 option(USE_CUDA "Enable CUDA GPU acceleration (requires nvcc + CUDA Toolkit)" ON)
 
 if(USE_CUDA)
-    include(CheckLanguage)
-    check_language(CUDA)
-    if(CMAKE_CUDA_COMPILER)
+    find_package(CUDAToolkit QUIET)
+    if(CUDAToolkit_FOUND)
         enable_language(CUDA)
         set(CMAKE_CUDA_STANDARD 17)
-        # RTX 2050 = Turing = sm_75
-        # Also include sm_70 (Volta) and sm_86 (Ampere) for broader compatibility
         set(CMAKE_CUDA_ARCHITECTURES 75)
-        message(STATUS "CUDA found: ${CMAKE_CUDA_COMPILER} — building GPU kernels (sm_75)")
+        message(STATUS "CUDA found: ${CUDAToolkit_NVCC_EXECUTABLE} — building GPU kernels (sm_75)")
         set(HAS_CUDA TRUE)
     else()
-        message(WARNING "USE_CUDA=ON but nvcc not found — building CPU-only")
+        message(WARNING "USE_CUDA=ON but CUDAToolkit not found — building CPU-only")
         set(HAS_CUDA FALSE)
     endif()
 else()
@@ -43,6 +40,7 @@ set(CPP_SOURCES
 
 if(HAS_CUDA)
     list(APPEND CPP_SOURCES
+        cuda_constants.cu
         cuda_propagator.cu
         cuda_conjunction.cu
     )
