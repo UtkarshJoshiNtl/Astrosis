@@ -80,17 +80,23 @@ export function PassesPanel({ selectedId }: { selectedId: number | null }) {
     <div className="p-4 text-[11px] space-y-3">
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1">
-          <span className="text-muted-foreground">LAT</span>
+          <label htmlFor="pass-lat" className="text-muted-foreground">
+            LAT
+          </label>
           <input
-            className="w-20 hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+            id="pass-lat"
+            className="w-20 hairline bg-transparent px-1.5 py-0.5 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
             value={lat}
             onChange={(e) => setLat(e.target.value)}
           />
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-muted-foreground">LON</span>
+          <label htmlFor="pass-lon" className="text-muted-foreground">
+            LON
+          </label>
           <input
-            className="w-20 hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+            id="pass-lon"
+            className="w-20 hairline bg-transparent px-1.5 py-0.5 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
             value={lon}
             onChange={(e) => setLon(e.target.value)}
           />
@@ -119,8 +125,8 @@ export function PassesPanel({ selectedId }: { selectedId: number | null }) {
             </tr>
           </thead>
           <tbody>
-            {data.map((p, i) => (
-              <tr key={i} className="hairline-b">
+            {data.map((p) => (
+              <tr key={`${p.aos}-${p.los}`} className="hairline-b">
                 <td className="px-2 py-1 font-mono text-[10px]">
                   {new Date(p.aos).toISOString().slice(11, 19)}
                 </td>

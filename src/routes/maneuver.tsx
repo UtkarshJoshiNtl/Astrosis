@@ -45,41 +45,56 @@ function ManeuverPage() {
         <div className="w-72 p-4 surface hairline-r space-y-3 text-[11px]">
           <h2 className="tag mb-2">Hohmann Transfer</h2>
           <div>
-            <label className="text-muted-foreground">Source radius (km)</label>
+            <label htmlFor="r1" className="text-muted-foreground">
+              Source radius (km)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              id="r1"
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={r1}
               onChange={(e) => setR1(e.target.value)}
             />
           </div>
           <div>
-            <label className="text-muted-foreground">Target radius (km)</label>
+            <label htmlFor="r2" className="text-muted-foreground">
+              Target radius (km)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              id="r2"
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={r2}
               onChange={(e) => setR2(e.target.value)}
             />
           </div>
           <div>
-            <label className="text-muted-foreground">Isp (s)</label>
+            <label htmlFor="isp" className="text-muted-foreground">
+              Isp (s)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              id="isp"
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={isp}
               onChange={(e) => setIsp(e.target.value)}
             />
           </div>
           <div>
-            <label className="text-muted-foreground">Dry mass (kg)</label>
+            <label htmlFor="dryMass" className="text-muted-foreground">
+              Dry mass (kg)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              id="dryMass"
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={dryMass}
               onChange={(e) => setDryMass(e.target.value)}
             />
           </div>
           <div>
-            <label className="text-muted-foreground">Propellant mass (kg)</label>
+            <label htmlFor="propMass" className="text-muted-foreground">
+              Propellant mass (kg)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-2 py-1 num text-foreground"
+              id="propMass"
+              className="w-full hairline bg-transparent px-2 py-1 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={propMass}
               onChange={(e) => setPropMass(e.target.value)}
             />

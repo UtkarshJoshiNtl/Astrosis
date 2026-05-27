@@ -66,8 +66,11 @@ function ConjunctionsPage() {
                   </td>
                 </tr>
               )}
-              {pairs?.map((p, i) => (
-                <tr key={i} className="hairline-b hover:bg-[var(--surface-2)]">
+              {pairs?.map((p) => (
+                <tr
+                  key={`${p.a}-${p.b}-${p.tca}`}
+                  className="hairline-b hover:bg-[var(--surface-2)]"
+                >
                   <td className="px-3 py-1.5">{p.a}</td>
                   <td className="px-3 py-1.5">{p.b}</td>
                   <td className="text-right px-3 py-1.5 font-mono">

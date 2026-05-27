@@ -21,33 +21,40 @@ interface PlotProps {
   children?: ReactNode;
 }
 
-const TOOLTIP_STYLE = {
-  background: "oklch(0.19 0.005 250)",
-  border: "1px solid oklch(1 0 0 / 10%)",
-  borderRadius: 2,
-  fontSize: 11,
+const TOOLTIP_STYLE: Record<string, string> = {
+  background: "var(--surface-2)",
+  border: "1px solid var(--border)",
+  borderRadius: "0",
+  fontSize: "11px",
 };
 
 export function Plot({ data, xKey, lines, type = "line", height = 160, yLabel }: PlotProps) {
   const chart =
     type === "bar" ? (
       <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-        <CartesianGrid stroke="oklch(1 0 0 / 6%)" />
-        <XAxis dataKey={xKey} tick={{ fontSize: 9, fill: "oklch(0.65 0.01 250)" }} />
+        <CartesianGrid stroke="var(--border)" />
+        <XAxis
+          dataKey={xKey}
+          tick={{ fontSize: 9, fill: "var(--muted-foreground)", fontFamily: "IBM Plex Mono" }}
+        />
         <YAxis
-          tick={{ fontSize: 9, fill: "oklch(0.65 0.01 250)" }}
+          tick={{ fontSize: 9, fill: "var(--muted-foreground)", fontFamily: "IBM Plex Mono" }}
           label={
             yLabel
               ? {
                   value: yLabel,
                   angle: -90,
                   position: "insideLeft",
-                  style: { fill: "oklch(0.65 0.01 250)", fontSize: 9 },
+                  style: {
+                    fill: "var(--muted-foreground)",
+                    fontSize: 9,
+                    fontFamily: "IBM Plex Mono",
+                  },
                 }
               : undefined
           }
         />
-        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "oklch(0.95 0.005 250)" }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--foreground)" }} />
         {lines.map((l) => (
           <Bar
             key={l.key}
@@ -59,22 +66,29 @@ export function Plot({ data, xKey, lines, type = "line", height = 160, yLabel }:
       </BarChart>
     ) : (
       <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-        <CartesianGrid stroke="oklch(1 0 0 / 6%)" />
-        <XAxis dataKey={xKey} tick={{ fontSize: 9, fill: "oklch(0.65 0.01 250)" }} />
+        <CartesianGrid stroke="var(--border)" />
+        <XAxis
+          dataKey={xKey}
+          tick={{ fontSize: 9, fill: "var(--muted-foreground)", fontFamily: "IBM Plex Mono" }}
+        />
         <YAxis
-          tick={{ fontSize: 9, fill: "oklch(0.65 0.01 250)" }}
+          tick={{ fontSize: 9, fill: "var(--muted-foreground)", fontFamily: "IBM Plex Mono" }}
           label={
             yLabel
               ? {
                   value: yLabel,
                   angle: -90,
                   position: "insideLeft",
-                  style: { fill: "oklch(0.65 0.01 250)", fontSize: 9 },
+                  style: {
+                    fill: "var(--muted-foreground)",
+                    fontSize: 9,
+                    fontFamily: "IBM Plex Mono",
+                  },
                 }
               : undefined
           }
         />
-        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "oklch(0.95 0.005 250)" }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "var(--foreground)" }} />
         {lines.map((l) => (
           <Line
             key={l.key}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { hohmannLocal } from "@/lib/astrosis/hohmann";
 import { useConstellation } from "@/hooks/useAstrosisData";
 import type { HohmannResult } from "@/lib/astrosis/types";
@@ -11,9 +11,10 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
     [satellites, selectedId],
   );
 
-  const defaultR1 = selectedSat?.sma_km ? String(Math.round(selectedSat.sma_km)) : "7171";
-
-  const [r1, setR1] = useState(defaultR1);
+  const [r1, setR1] = useState("7171");
+  useEffect(() => {
+    setR1(selectedSat?.sma_km ? String(Math.round(selectedSat.sma_km)) : "7171");
+  }, [selectedId, selectedSat?.sma_km]);
   const [r2, setR2] = useState("42164");
   const [isp, setIsp] = useState("300");
   const [dryMass, setDryMass] = useState("1000");
@@ -49,41 +50,56 @@ export function ManeuverPanel({ selectedId }: { selectedId: number | null }) {
         <div className="hairline" />
         <div className="space-y-1.5">
           <div>
-            <span className="text-muted-foreground">r₁ (km)</span>
+            <label htmlFor="mp-r1" className="text-muted-foreground">
+              r₁ (km)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              id="mp-r1"
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={r1}
               onChange={(e) => setR1(e.target.value)}
             />
           </div>
           <div>
-            <span className="text-muted-foreground">r₂ (km)</span>
+            <label htmlFor="mp-r2" className="text-muted-foreground">
+              r₂ (km)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              id="mp-r2"
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={r2}
               onChange={(e) => setR2(e.target.value)}
             />
           </div>
           <div>
-            <span className="text-muted-foreground">Isp (s)</span>
+            <label htmlFor="mp-isp" className="text-muted-foreground">
+              Isp (s)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              id="mp-isp"
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={isp}
               onChange={(e) => setIsp(e.target.value)}
             />
           </div>
           <div>
-            <span className="text-muted-foreground">Dry mass (kg)</span>
+            <label htmlFor="mp-dry" className="text-muted-foreground">
+              Dry mass (kg)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              id="mp-dry"
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={dryMass}
               onChange={(e) => setDryMass(e.target.value)}
             />
           </div>
           <div>
-            <span className="text-muted-foreground">Prop mass (kg)</span>
+            <label htmlFor="mp-prop" className="text-muted-foreground">
+              Prop mass (kg)
+            </label>
             <input
-              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground"
+              id="mp-prop"
+              className="w-full hairline bg-transparent px-1.5 py-0.5 num text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
               value={propMass}
               onChange={(e) => setPropMass(e.target.value)}
             />

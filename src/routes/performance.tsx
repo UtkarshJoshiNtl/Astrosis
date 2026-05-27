@@ -91,8 +91,8 @@ function PerformancePage() {
             </tr>
           </thead>
           <tbody>
-            {SPEEDUP_DATA.map((row, i) => (
-              <tr key={i} className="hairline-b">
+            {SPEEDUP_DATA.map((row) => (
+              <tr key={row.operation} className="hairline-b">
                 <td className="px-3 py-1.5">{row.operation}</td>
                 <td className="text-right px-3 py-1.5 text-[var(--chart-1)]">{row.cpp}</td>
                 <td className="text-right px-3 py-1.5 text-[var(--primary)]">{row.cuda}</td>

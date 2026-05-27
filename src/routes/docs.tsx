@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PageShell, useUtcClock } from "@/components/shell/Chrome";
 import { useHealth } from "@/hooks/useAstrosisData";
 import Markdown from "react-markdown";
@@ -29,10 +29,12 @@ function DocsPage() {
   const backendLabel = health.data?.backend ?? "—";
   const [activeDoc, setActiveDoc] = useState("architecture");
   const [contents, setContents] = useState<Record<string, string>>({});
+  const loaded = useRef(new Set<string>());
 
   useEffect(() => {
     for (const doc of DOC_FILES) {
-      if (contents[doc.id]) continue;
+      if (loaded.current.has(doc.id)) continue;
+      loaded.current.add(doc.id);
       fetch(`/docs/${doc.id}.md`)
         .then((res) => res.text())
         .then((text) => setContents((prev) => ({ ...prev, [doc.id]: text })))
@@ -43,7 +45,7 @@ function DocsPage() {
           })),
         );
     }
-  }, [contents]);
+  }, []);
 
   const content = contents[activeDoc] ?? `# ${DOC_LABELS[activeDoc] ?? activeDoc}\n\nLoading...`;
 

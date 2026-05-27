@@ -112,8 +112,8 @@ export function EphemerisPanel({ selectedId }: { selectedId: number | null }) {
             </tr>
           </thead>
           <tbody>
-            {tablePoints.map((p, i) => (
-              <tr key={i} className="hairline-b">
+            {tablePoints.map((p) => (
+              <tr key={p.t} className="hairline-b">
                 <td className="px-1 py-0.5 font-mono">{p.t}Z</td>
                 <td className="text-right px-1 py-0.5 num">{p.alt_km.toFixed(1)}</td>
                 <td className="text-right px-1 py-0.5 num">{p.lat.toFixed(1)}°</td>

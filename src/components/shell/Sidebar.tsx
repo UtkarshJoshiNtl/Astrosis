@@ -45,7 +45,7 @@ export function Sidebar({
       )}
       <div className="px-2 py-1 hairline-b">
         <input
-          className="w-full hairline bg-transparent px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground num"
+          className="w-full hairline bg-transparent px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground num focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
           placeholder="Search NORAD / name..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}

@@ -77,13 +77,10 @@ export function TopBar({
       </div>
       <form onSubmit={handleSearchSubmit} className="flex items-center px-2 hairline-r">
         <input
-          className="w-56 hairline bg-transparent px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground num focus:outline-none focus:border-[var(--primary)]"
+          className="w-56 hairline bg-transparent px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground num focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
           placeholder="NORAD ID or name — try 25544"
           value={searchVal}
           onChange={(e) => setSearchVal(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSearchSubmit(e);
-          }}
         />
         {searching && <span className="tag ml-2">searching...</span>}
       </form>

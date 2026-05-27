@@ -63,8 +63,8 @@ export function ConjunctionsPanel({ selectedId }: { selectedId: number | null })
             </tr>
           </thead>
           <tbody>
-            {data.map((p, i) => (
-              <tr key={i} className="hairline-b">
+            {data.map((p) => (
+              <tr key={`${p.a}-${p.b}-${p.tca}`} className="hairline-b">
                 <td className="px-2 py-1 num">{p.a}</td>
                 <td className="px-2 py-1 num">{p.b}</td>
                 <td className="text-right px-2 py-1 font-mono text-[10px]">
