@@ -119,10 +119,12 @@ sim = SimulationContext(backend=Backend.NUMPY)
 
 **Conjunction** (`conjunction.py`):
 
-- Pairwise distance computation
-- Time-of-Closest-Approach (TCA) refinement
+- Pairwise distance computation (multi-backend: CUDA → C++ → NumPy → Python)
+- Pre-propagation optimization: each object propagated once, not once per pair
+- SoA layout in GPU memory for coalesced distance scanning
+- Time-of-Closest-Approach (TCA) refinement (Brent minimisation)
 - Collision probability (Chan approximation)
-- Spatial partitioning for O(N log N) screening
+- Severity thresholds: CRITICAL (< 0.1 km), WARNING (< 1.0 km), ADVISORY (< 5.0 km)
 
 **Fuel** (`fuel.py`):
 
@@ -185,15 +187,18 @@ sim = SimulationContext(backend=Backend.NUMPY)
 
 ```
 cpp/
-├── CMakeLists.txt          # Build configuration
+├── CMakeLists.txt          # Build configuration (find_package CUDAToolkit)
 ├── physics_constants.h     # J2, GM, R_E, etc.
-├── propagator.cpp/.h       # RK4 implementation
-├── conjunction.cpp/.h      # Pairwise screening
-├── maneuver.cpp/.h         # Maneuver calculations
-├── fuel.cpp/.h             # Fuel modeling
-├── cuda_propagator.cu      # CUDA kernel: k_prop_soa
-├── cuda_conjunction.cu     # CUDA kernel: k_conjunction
-└── cuda_physics.cuh        # CUDA force computation
+├── propagator.cpp/.h       # RK4 implementation (pybind11 bindings)
+├── conjunction.cpp/.h      # C++ conjunction + Brent minimiser
+├── maneuver.cpp/.h         # Maneuver calculations (total-mass fuel cost)
+├── fuel.cpp/.h             # Fuel modeling (ValueError on underflow)
+├── cuda_propagator.cu      # CUDA kernels: k_prop_soa, k_history, run_streamed
+├── cuda_conjunction.cu     # CUDA kernels: k_prepropagate, k_scan_pairs
+├── cuda_constants.cu       # Single-source __constant__ definitions
+├── cuda_physics.cuh        # RAII wrappers (DeviceMem, HostPinnedMem) + accel()
+├── cuda_bridge.h           # C++ declarations for CUDA functions
+└── build/physics_engine.cpython-*.so  # pybind11 shared module
 ```
 
 **Build:**
@@ -206,15 +211,20 @@ make -j$(nproc)
 
 ---
 
-### `frontend/` — Visualization
+### `frontend/` — TanStack Start + React Dashboard (Cloudflare Worker)
 
-**Technology:** Three.js + WebSocket + Plotly
+**Stack:** TanStack Start (SSR), React 19, Vite, shadcn/ui, Tailwind CSS
 
-- **3D globe** with satellite orbits
-- **Real-time tracking** of constellation
-- **Conjunction visualization** (risk heatmap)
-- **Ground station footprints**
-- **Maneuver planner** interactive tool
+- **3D globe** with satellite orbits and ground tracks
+- **Real-time constellation tracking** via FastAPI backend
+- **Conjunction visualization** with severity-coded risk heatmap
+- **Ground station pass prediction**
+- **Maneuver planner** (Hohmann transfer, fuel budget)
+- **Backend info panel** (shows active compute backend)
+
+**Dev proxy:** Vite proxies `/api` → `http://localhost:8000`
+
+**Build artifact:** Cloudflare Worker (SSR), no Node.js server needed in production.
 
 ---
 
@@ -236,16 +246,15 @@ make -j$(nproc)
 │  (~48 KB for 1,000 6-element state vectors)
 │
 ├─ GPU Memory Setup
-│  Device memory allocation: 100 MB (satellite data + temporaries)
-│  Transfer: 48 KB upload (negligible)
+│  Device memory allocation: SoA layout [x₀..xₙ₋₁, y₀..yₙ₋₁, ..., vz₀..vzₙ₋₁]
+│  Transfer: 48 KB upload (negligible for 1,000 sats)
 │
-├─ CUDA Kernel Execution (86,400 steps)
-│  Launch grid: 4 blocks × 256 threads (1,024 total threads)
-│  Each thread: 1 satellite across all 4 RK4 stages
-│  Loop: for each 10-second timestep
-│    - k_prop_soa (GPU kernel) evaluates all 1,000 satellites
-│    - 4 kernel launches per step (RK4 k1, k2, k3, k4)
-│  Total kernel calls: 4 × 86,400 = 345,600
+├─ CUDA Kernel Execution (8,640 steps × 10 s)
+│  Launch grid: N/256 blocks × 256 threads (1,000 sats → 4 blocks)
+│  Single k_prop_soa kernel handles all 4 RK4 stages internally:
+│    for step in 0..steps:
+│      rk4_step_device(x, y, z, vx, vy, vz)  ← all 4 substages
+│  Total kernel launches: 1 (not 4 per step)
 │
 ├─ GPU Memory Transfer (download results)
 │  Final state: 48 KB download
@@ -255,6 +264,43 @@ make -j$(nproc)
    Trajectory array: [86,400 timesteps × 1,000 sats × 6 components]
    Time: 46.9 ± 2.1 ms (measured)
 ```
+
+**Conjunction screening** uses a 2-phase GPU algorithm to eliminate redundant propagation (see dedicated section below).
+
+## Data Flow: Conjunction Screening
+
+**Example:** Screen 500 sats × 500 debris for conjunctions over 10 hours
+
+```
+┌─ accelerator.detect_conjunctions(sats, debs, lookahead=36000, step_s=60)
+│
+├─ Backend: CUDA → C++/OpenMP → NumPy → Python
+│
+├─ CUDA Path (2-phase):
+│
+│  Phase 1 — Pre-propagation (k_prepropagate)
+│  │  Propagate all 500 sats + 500 debs for 600 steps each
+│  │  Store trajectory in SoA per timestep:
+│  │    [(step0)[X₀..X₄₉₉, Y₀..Y₄₉₉, ..., VZ₀..VZ₄₉₉](step1)[...]]
+│  │  Memory: 601 × 500 × 6 × 8 × 2 = 28.8 MB
+│  │  Cost: O((ns+nd) × nsteps) = 600K propagations
+│  │
+│  └─ Phase 2 — Pair Scan (k_scan_pairs)
+│     Grid: (500/16, 500/16) blocks × (16,16) threads
+│     Each thread: coalesced reads of pre-propagated SoA arrays
+│     Cost: O(ns × nd × nsteps) = 150M distance calcs (no RK4)
+│
+│  Speedup vs naive: ~250× (150M → 600K propagations)
+│
+├─ C++: Brent refinement on detected candidates
+│  Propagates from saved bracket-left state (sat_lo/deb_lo)
+│  At most 2× step_s per refinement
+│
+└─ Return: vector&lt;ConjunctionWarning&gt;
+```
+
+For CUDA kernel details: `cpp/cuda_conjunction.cu` (`k_prepropagate`, `k_scan_pairs`).
+For C++ refinement: `cpp/conjunction.cpp` (`brent_minimise&lt;F&gt;` — no heap alloc).
 
 ---
 
@@ -305,8 +351,54 @@ Estimated benefit: 20–30% speedup with < 0.01% accuracy loss (TBD by validatio
 
 1. Implement `Backend` interface in `engine/simulation.py`
 2. Port physics kernels to target architecture (e.g., OpenCL, HIP)
-3. Update backend selection heuristics
-4. Benchmark vs. CUDA baseline
+3. Update backend selection heuristics in `engine/core/accelerator.py`
+4. Add `_backend_fields()` entry for API responses
+5. Benchmark vs. CUDA baseline via `benchmarks/benchmark.py`
+
+## Operations & Infrastructure
+
+### Deployment
+
+```
+deploy/
+└── astrosis.service     # systemd unit (Restart=on-failure, RestartSec=5)
+```
+
+### Configuration
+
+```
+config/
+└── constellation.json   # 500-satellite demo constellation (runtime-editable)
+```
+
+The constellation is loaded from `config/constellation.json` at server start.
+Changing the constellation does NOT require a redeploy — edit JSON and the
+in-process cache (60s TTL) refreshes automatically.
+
+### Pre-commit Hooks
+
+`.pre-commit-config.yaml` enforces: black, ruff, clang-format, trailing-whitespace
+
+Install with: `pre-commit install`
+
+### Environment
+
+See `.env.example`:
+- `CELESTRAK_API_URL` — TLE source URL
+- `TLE_REFRESH_INTERVAL_HOURS` — cache refresh period
+- `LOG_LEVEL` — logging verbosity
+- `SPACETRACK_USER` / `SPACETRACK_PASS` — Space-Track.org auth (optional)
+
+---
+
+## Testing & Validation Strategy
+
+- **Unit tests:** `tests/test_correctness.py` (18 tests: energy, RK4 order, conjunction, fuel, propagation)
+- **Physics validation:** `validation/validate_physics.py` (4 tests: energy 24h, SGP4 comparison, RAAN precession, RK4 convergence order)
+- **SGP4 research:** `validation/sgp4_vs_rk4.py` (72-hour divergence analysis)
+- **Performance regression:** `benchmarks/benchmark.py` (CSV output, strong/weak scaling, `--plot` flag)
+- **Roofline analysis:** `validation/cuda_roofline.py` (RTX 2050 hardcoded limits, optional ncu metric parsing)
+- **Reproducibility:** Deterministic for all operations
 
 ---
 
@@ -331,13 +423,3 @@ The Astrosis API is subject to change before v1.0. Key interfaces may be reorgan
 ### Deprecated Features
 
 None currently; all features pre-v1.0.
-
----
-
-## Testing & Validation Strategy
-
-- **Unit tests:** `tests/test_*.py`
-- **Integration tests:** End-to-end propagation + analysis
-- **Physics validation:** `validation/*.py` with analytical/real-world baselines
-- **Performance regression:** Automated benchmarking on CI
-- **Reproducibility:** Deterministic seeding for all random operations
