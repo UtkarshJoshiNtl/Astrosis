@@ -1,5 +1,7 @@
 #include "fuel.h"
 #include <cmath>
+#include <stdexcept>
+#include <string>
 
 FuelTracker::FuelTracker(double initial_fuel, double dry_mass)
     : fuel_kg(initial_fuel), dry_mass(dry_mass), initial_fuel_kg(initial_fuel) {}
@@ -27,6 +29,8 @@ double FuelTracker::calculate_fuel_cost(const std::array<double, 3>& delta_v) co
 
 void FuelTracker::apply_burn(const std::array<double, 3>& delta_v) {
     double cost = calculate_fuel_cost(delta_v);
+    if (cost > fuel_kg)
+        throw std::runtime_error("Insufficient fuel: burn requires " +
+            std::to_string(cost) + " kg but only " + std::to_string(fuel_kg) + " kg remaining");
     fuel_kg -= cost;
-    if (fuel_kg < 0.0) fuel_kg = 0.0;
 }

@@ -3,11 +3,65 @@ astrosis/frames.py — Coordinate Reference Frames
 ==================================================
 Conversions between ECI (Earth-Centered Inertial), ECEF (Earth-Centered, Earth-Fixed),
 and Topocentric (Observer-based) frames.
+Also provides :func:`julian_date` and :func:`equation_of_equinoxes` shared across the
+entire engine and server.
 """
 
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..constants import RE, F_WGS84, E2_WGS84
+
+
+def julian_date(dt: datetime) -> float:
+    """Return the Julian Date for a naïve UTC datetime."""
+    y = dt.year
+    m = dt.month
+    d = (
+        dt.day
+        + (dt.hour + dt.minute / 60.0 + (dt.second + dt.microsecond / 1e6) / 3600.0)
+        / 24.0
+    )
+    if m <= 2:
+        y -= 1
+        m += 12
+    a = int(y / 100)
+    b = 2 - a + int(a / 4)
+    return int(365.25 * (y + 4716)) + int(30.6001 * (m + 1)) + d + b - 1524.5
+
+
+def equation_of_equinoxes(dt: datetime) -> float:
+    """
+    Approximate equation of the equinoxes in radians.
+
+    This is a small-angle correction used to convert between TEME and ECI/GCRF.
+    The nutation series includes the four largest terms, adequate for sub-metre
+    position accuracy when comparing SGP4 (TEME) output against the numerical
+    propagator (ECI).
+    """
+    jd = julian_date(dt)
+    t = (jd - 2451545.0) / 36525.0
+
+    L = np.deg2rad(280.4665 + 36000.7698 * t)
+    Lp = np.deg2rad(218.3165 + 481267.8813 * t)
+    omega = np.deg2rad(125.04452 - 1934.136261 * t)
+
+    dpsi_arcsec = (
+        -17.20 * np.sin(omega)
+        - 1.32 * np.sin(2.0 * L)
+        - 0.23 * np.sin(2.0 * Lp)
+        + 0.21 * np.sin(2.0 * omega)
+    )
+
+    eps0_arcsec = 84381.448 - 46.8150 * t - 0.00059 * t * t + 0.001813 * t * t * t
+    eps_arcsec = eps0_arcsec + (
+        9.20 * np.cos(omega)
+        + 0.57 * np.cos(2.0 * L)
+        + 0.10 * np.cos(2.0 * Lp)
+        - 0.09 * np.cos(2.0 * omega)
+    )
+
+    eps = np.deg2rad(eps_arcsec / 3600.0)
+    return np.deg2rad((dpsi_arcsec * np.cos(eps)) / 3600.0)
 
 
 def gmst_from_datetime(dt: datetime) -> float:
@@ -15,21 +69,7 @@ def gmst_from_datetime(dt: datetime) -> float:
     Compute Greenwich Mean Sidereal Time (GMST) in radians.
     Uses simplified 1997 IAU formula good for coarse analysis.
     """
-    # Julian Date
-    y = dt.year
-    m = dt.month
-    d = dt.day + (dt.hour + dt.minute / 60.0 + dt.second / 3600.0) / 24.0
-
-    if m <= 2:
-        y -= 1
-        m += 12
-
-    A = np.floor(y / 100.0)
-    B = 2.0 - A + np.floor(A / 4.0)
-
-    jd = (
-        np.floor(365.25 * (y + 4716.0)) + np.floor(30.6001 * (m + 1.0)) + d + B - 1524.5
-    )
+    jd = julian_date(dt)
     t_ut1 = (jd - 2451545.0) / 36525.0
 
     # GMST in seconds
@@ -40,9 +80,36 @@ def gmst_from_datetime(dt: datetime) -> float:
         - 6.2e-6 * t_ut1**3
     )
 
-    # Radians — np.mod always returns [0, 2π), no negative guard needed
     gmst_rad = np.mod(gmst_sec * (2 * np.pi / 86400.0), 2 * np.pi)
     return gmst_rad
+
+
+def teme_to_eci(
+    r_teme: np.ndarray, v_teme: np.ndarray, dt: datetime
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Convert TEME position and velocity to ECI/GCRF.
+
+    The position correction is a small rotation about the z-axis by the
+    equation of the equinoxes. Velocity is rotated with the same transform and
+    gets a small transport correction from the time derivative of that angle.
+    """
+    r = np.asarray(r_teme, dtype=np.float64)
+    v = np.asarray(v_teme, dtype=np.float64)
+
+    theta = equation_of_equinoxes(dt)
+    c = np.cos(theta)
+    s = np.sin(theta)
+    rot = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+
+    r_eci = rot @ r
+
+    theta_prev = equation_of_equinoxes(dt - timedelta(seconds=1))
+    theta_next = equation_of_equinoxes(dt + timedelta(seconds=1))
+    theta_dot = 0.5 * (theta_next - theta_prev)
+    omega = np.array([0.0, 0.0, theta_dot], dtype=np.float64)
+    v_eci = rot @ v + np.cross(omega, r_eci)
+    return r_eci, v_eci
 
 
 def eci_to_ecef(r_eci: np.ndarray, dt: datetime) -> np.ndarray:

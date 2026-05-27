@@ -3,7 +3,8 @@ from typing import List
 import numpy as np
 
 from .conjunction import ConjunctionWarning
-from ..constants import MAX_DV, COOLDOWN_S, ISP, G0_KM
+from ..constants import MAX_DV, COOLDOWN_S
+from ..core.fuel import FuelTracker
 
 __all__ = ["ManeuverPlan", "ManeuverCalculator"]
 
@@ -14,10 +15,6 @@ class ManeuverPlan:
     recovery_dv_eci: List[float]
     fuel_cost_kg: float
     burn_timing_offset_s: float
-
-
-def _fuel_cost(dv_mag: float, initial_fuel: float = 1000.0) -> float:
-    return initial_fuel * (1.0 - np.exp(-dv_mag / (ISP * G0_KM)))
 
 
 class ManeuverCalculator:
@@ -44,12 +41,16 @@ class ManeuverCalculator:
         evasion_dv = list(direction * evasion_mag)
         recovery_dv = list(-direction * evasion_mag)
 
-        fuel_cost = _fuel_cost(evasion_mag) + _fuel_cost(evasion_mag)
+        tracker = FuelTracker()
+        evasion_cost = tracker.calculate_fuel_cost(evasion_dv)
+        remaining = max(0.0, tracker.fuel_kg - evasion_cost)
+        tracker.fuel_kg = remaining
+        recovery_cost = tracker.calculate_fuel_cost(recovery_dv)
 
         return ManeuverPlan(
             evasion_dv_eci=evasion_dv,
             recovery_dv_eci=recovery_dv,
-            fuel_cost_kg=fuel_cost,
+            fuel_cost_kg=evasion_cost + recovery_cost,
             burn_timing_offset_s=max(
                 0.0, warning.time_to_closest_approach - COOLDOWN_S
             ),

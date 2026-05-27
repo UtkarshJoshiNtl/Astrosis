@@ -1,9 +1,8 @@
 import httpx
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict
+from typing import List, Optional
 import logging
 import os
-import json
 import pathlib
 
 __all__ = ["TLEIngestor", "tle_ingestor"]
@@ -17,6 +16,8 @@ BUNDLED_CACHE = str(
 CELESTRAK_API_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 SPACETRACK_TLE_URL = "https://www.space-track.org/basicspaceradar/query/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle"
+# TLE epoch year cutoff: years < 57 → 2000+, years ≥ 57 → 1900+
+# Standard convention from the TLE format spec; will need updating after 2056.
 EPOCH_YEAR_CUTOFF = 57
 
 
@@ -46,8 +47,8 @@ class TLEIngestor:
                 resp = client.get(url, params=params)
                 resp.raise_for_status()
                 return resp.text.strip()
-        except Exception as e:
-            logger.warning(f"TLE fetch failed from {url}: {e}")
+        except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.ConnectError) as e:
+            logger.warning("TLE fetch failed from %s: %s", url, e)
             return None
 
     def _try_spacetrack(self) -> Optional[str]:
@@ -65,8 +66,8 @@ class TLEIngestor:
                 resp = client.get(SPACETRACK_TLE_URL)
                 if resp.status_code == 200:
                     return resp.text.strip()
-        except Exception as e:
-            logger.warning(f"Space-Track fetch failed: {e}")
+        except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.ConnectError) as e:
+            logger.warning("Space-Track fetch failed: %s", e)
         return None
 
     def fetch_tle_data(
@@ -74,9 +75,9 @@ class TLEIngestor:
     ) -> List[str]:
         cache_path = self._get_cache_path(satellite_id)
         if not force_refresh and self._is_cache_valid(cache_path):
-            logger.info(f"Loading TLEs from cache: {cache_path}")
+            logger.info("Loading TLEs from cache: %s", cache_path)
             with open(cache_path, "r", encoding="utf-8") as f:
-                return f.read().strip().split("\n")
+                return f.read().strip().splitlines()
 
         params = {"FORMAT": "TLE"}
         if satellite_id:
@@ -88,18 +89,18 @@ class TLEIngestor:
         if text:
             with open(cache_path, "w", encoding="utf-8") as f:
                 f.write(text)
-            return text.split("\n")
+            return text.splitlines()
 
         text = self._try_spacetrack()
         if text:
             with open(cache_path, "w", encoding="utf-8") as f:
                 f.write(text)
-            return text.split("\n")
+            return text.splitlines()
 
         if os.path.exists(cache_path):
             logger.warning("All remote TLE fetches failed, using stale cache.")
             with open(cache_path, "r", encoding="utf-8") as f:
-                return f.read().strip().split("\n")
+                return f.read().strip().splitlines()
 
         if os.path.exists(BUNDLED_CACHE):
             logger.warning("Using bundled fallback TLE cache from data/active.txt")
@@ -107,7 +108,7 @@ class TLEIngestor:
                 text = f.read().strip()
             with open(cache_path, "w", encoding="utf-8") as f:
                 f.write(text)
-            return text.split("\n")
+            return text.splitlines()
 
         return []
 

@@ -1,5 +1,5 @@
 import math
-from ..constants import ISP, G0, G0_KM, DRY_MASS, INITIAL_FUEL
+from ..constants import ISP, G0_KM, DRY_MASS, INITIAL_FUEL
 
 __all__ = ["FuelTracker"]
 
@@ -36,4 +36,9 @@ class FuelTracker:
 
     def apply_burn(self, delta_v: list) -> None:
         cost = self.calculate_fuel_cost(delta_v)
-        self.fuel_kg = max(0.0, self.fuel_kg - cost)
+        if cost > self.fuel_kg:
+            raise ValueError(
+                f"Insufficient fuel: burn requires {cost:.3f} kg but only "
+                f"{self.fuel_kg:.3f} kg remaining"
+            )
+        self.fuel_kg -= cost

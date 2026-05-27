@@ -11,15 +11,15 @@
 #include "propagator.h"
 #include <cmath>
 #include <algorithm>
-#include <functional>
+
 
 ConjunctionDetector::ConjunctionDetector() {}
 
 // ── Brent's Method for 1D minimisation ───────────────────────────────────────
 // Finds the x in [a,b] minimising f(x) to tolerance tol using Brent's method.
 // See: Brent (1973) "Algorithms for Minimization without Derivatives"
-static double brent_minimise(std::function<double(double)> f,
-                              double a, double b, double tol = 0.01) {
+template<typename F>
+static double brent_minimise(F&& f, double a, double b, double tol = 0.01) {
     constexpr double GOLDEN = 0.3819660;
     double x = a + GOLDEN * (b - a);
     double w = x, v = x;
@@ -107,11 +107,15 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
         for (size_t j = 0; j < debris_states.size(); ++j) {
             StateVector sat = sat_states[i];
             StateVector deb = debris_states[j];
+            StateVector sat_prev = sat;
+            StateVector deb_prev = deb;
 
             double min_distance = std::numeric_limits<double>::max();
             double tca_coarse   = 0.0;
             StateVector sat_tca = sat;
             StateVector deb_tca = deb;
+            StateVector sat_lo  = sat;
+            StateVector deb_lo  = deb;
 
             // ── Coarse sweep (incremental propagation) ────────────────────────
             for (double t = 0.0; t <= lookahead_s; t += step_s) {
@@ -125,8 +129,12 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
                     tca_coarse   = t;
                     sat_tca      = sat;
                     deb_tca      = deb;
+                    sat_lo       = sat_prev;
+                    deb_lo       = deb_prev;
                 }
 
+                sat_prev = sat;
+                deb_prev = deb;
                 sat = prop.propagate(sat, step_s);
                 deb = prop.propagate(deb, step_s);
             }
@@ -135,24 +143,27 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
             if (min_distance >= ADVISORY_DISTANCE) continue;
 
             // ── Brent refinement in [tca_coarse - step_s, tca_coarse + step_s] ──
-            // We propagate fresh from sat_states[i] for the Brent objective function.
-            StateVector s0 = sat_states[i];
-            StateVector d0 = debris_states[j];
-
-            double t_lo = std::max(0.0, tca_coarse - step_s);
+            // Use state at bracket-left (sat_lo/deb_lo) to avoid re-propagating
+            // the full trajectory from t=0 for each Brent evaluation.
+            double t_lo = tca_coarse - step_s;
+            if (t_lo < 0.0) {
+                t_lo = 0.0;
+                sat_lo = sat_states[i];
+                deb_lo = debris_states[j];
+            }
             double t_hi = std::min(lookahead_s, tca_coarse + step_s);
 
             auto distance_at_t = [&](double t) -> double {
-                // Propagate from the coarse bracket start to avoid full re-integration
-                auto s = prop.propagate_steps(s0, t, step_s);
-                auto d = prop.propagate_steps(d0, t, step_s);
+                double delta = t - t_lo;
+                auto s = prop.propagate_steps(sat_lo, delta, step_s);
+                auto d = prop.propagate_steps(deb_lo, delta, step_s);
                 double dx = s[0]-d[0], dy = s[1]-d[1], dz = s[2]-d[2];
                 return std::sqrt(dx*dx + dy*dy + dz*dz);
             };
 
             double tca_refined = brent_minimise(distance_at_t, t_lo, t_hi, 0.1);
-            auto s_tca = prop.propagate_steps(s0, tca_refined, step_s);
-            auto d_tca = prop.propagate_steps(d0, tca_refined, step_s);
+            auto s_tca = prop.propagate_steps(sat_lo, tca_refined - t_lo, step_s);
+            auto d_tca = prop.propagate_steps(deb_lo, tca_refined - t_lo, step_s);
 
             double dx_f = s_tca[0]-d_tca[0];
             double dy_f = s_tca[1]-d_tca[1];
@@ -166,10 +177,10 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
             const auto& final_d = (min_dist_refined < min_distance) ? d_tca : deb_tca;
 
             // ── Classify severity ─────────────────────────────────────────────
-            std::string severity = "NONE";
-            if      (final_dist < CRITICAL_DISTANCE)  severity = "CRITICAL";
-            else if (final_dist < WARNING_DISTANCE)   severity = "WARNING";
-            else if (final_dist < ADVISORY_DISTANCE)  severity = "ADVISORY";
+            Severity severity = Severity::NONE;
+            if      (final_dist < CRITICAL_DISTANCE)  severity = Severity::CRITICAL;
+            else if (final_dist < WARNING_DISTANCE)   severity = Severity::WARNING;
+            else if (final_dist < ADVISORY_DISTANCE)  severity = Severity::ADVISORY;
             else continue;
 
             // ── Relative velocity at TCA ──────────────────────────────────────

@@ -4,13 +4,13 @@
 
 ManeuverCalculator::ManeuverCalculator() = default;
 
-static double fuel_cost_kg(double dv_mag_km_s) {
-    return INITIAL_FUEL * (1.0 - std::exp(-dv_mag_km_s / (ISP * G0_KM)));
+static double fuel_cost_kg(double dv_mag_km_s, double total_mass_kg) {
+    return total_mass_kg * (1.0 - std::exp(-dv_mag_km_s / (ISP * G0_KM)));
 }
 
 ManeuverPlan ManeuverCalculator::calculate(
     const std::array<double, 6>& sat_state,
-    const ConjunctionWarning& warning) {
+    const ConjunctionWarning& warning) const {
 
     ManeuverPlan plan;
     auto rv = warning.relative_velocity;
@@ -45,7 +45,10 @@ ManeuverPlan ManeuverCalculator::calculate(
         -plan.evasion_dv_eci[2]
     };
 
-    plan.fuel_cost_kg = fuel_cost_kg(evasion_mag) + fuel_cost_kg(evasion_mag);
+    double total_mass = DRY_MASS + INITIAL_FUEL;
+    double evasion_cost = fuel_cost_kg(evasion_mag, total_mass);
+    double recovery_cost = fuel_cost_kg(evasion_mag, total_mass - evasion_cost);
+    plan.fuel_cost_kg = evasion_cost + recovery_cost;
     plan.burn_timing_offset_s = std::max(0.0, warning.time_to_closest_approach - COOLDOWN_S);
 
     return plan;

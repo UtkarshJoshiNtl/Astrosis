@@ -11,7 +11,6 @@ from ..constants import (
     MU_SUN,
     MU_MOON,
     AU,
-    RS_SUN,
 )
 from .ephemeris import sun_position_eci, moon_position_eci
 
@@ -80,18 +79,19 @@ _ATMO_TABLE = [
 
 
 def get_atmospheric_density(altitude_km):
-    if isinstance(altitude_km, (float, int)):
-        if altitude_km >= 1000:
+    if np.ndim(altitude_km) == 0:
+        alt = float(altitude_km)
+        if alt >= 1000:
             return 0.0
-        if altitude_km < 0:
-            altitude_km = 0.0
+        if alt < 0:
+            alt = 0.0
         for i in range(len(_ATMO_TABLE) - 1):
             h0, H, rho0 = _ATMO_TABLE[i]
-            if h0 <= altitude_km < _ATMO_TABLE[i + 1][0]:
-                return rho0 * math.exp(-(altitude_km - h0) / H)
+            if h0 <= alt < _ATMO_TABLE[i + 1][0]:
+                return rho0 * math.exp(-(alt - h0) / H)
         return 0.0
 
-    alt = np.atleast_1d(altitude_km)
+    alt = np.atleast_1d(np.asarray(altitude_km, dtype=np.float64))
     rho = np.zeros_like(alt)
     for i in range(len(_ATMO_TABLE) - 1):
         h0, H, rho0 = _ATMO_TABLE[i]

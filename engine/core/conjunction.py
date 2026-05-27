@@ -1,12 +1,20 @@
 import math
 from dataclasses import dataclass, field
-from typing import List, Optional
+from enum import StrEnum
+from typing import List
 import numpy as np
 
 from .propagator import rk4_step, propagate_batch_numpy
 from ..constants import CRITICAL_DISTANCE, WARNING_DISTANCE, ADVISORY_DISTANCE, RE
 
-__all__ = ["PcResult", "ConjunctionWarning", "ConjunctionDetector"]
+__all__ = ["Severity", "PcResult", "ConjunctionWarning", "ConjunctionDetector"]
+
+
+class Severity(StrEnum):
+    NONE = "NONE"
+    ADVISORY = "ADVISORY"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
 
 
 @dataclass
@@ -22,7 +30,7 @@ class ConjunctionWarning:
     debris_id: int = 0
     current_distance: float = 0.0
     time_to_closest_approach: float = 0.0
-    severity: str = "NONE"
+    severity: Severity = Severity.NONE
     relative_velocity: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
     pc_result: PcResult = field(default_factory=PcResult)
 
@@ -181,8 +189,6 @@ class ConjunctionDetector:
                 if min_dist >= ADVISORY_DISTANCE:
                     continue
 
-                s0 = tuple(sat_states[sat_idx])
-                d0 = tuple(debris_states[deb_idx])
                 t_lo = max(0.0, tca_coarse - step_s)
                 t_hi = min(lookahead_s, tca_coarse + step_s)
 
@@ -210,11 +216,11 @@ class ConjunctionDetector:
                 final_tca = tca_refined if dist_refined < min_dist else tca_coarse
 
                 if final_dist < CRITICAL_DISTANCE:
-                    severity = "CRITICAL"
+                    severity = Severity.CRITICAL
                 elif final_dist < WARNING_DISTANCE:
-                    severity = "WARNING"
+                    severity = Severity.WARNING
                 elif final_dist < ADVISORY_DISTANCE:
-                    severity = "ADVISORY"
+                    severity = Severity.ADVISORY
                 else:
                     continue
 

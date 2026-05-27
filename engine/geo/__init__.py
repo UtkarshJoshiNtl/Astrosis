@@ -7,6 +7,9 @@ from .frames import (
     ecef_to_geodetic,
     geodetic_to_ecef,
     topocentric_aer,
+    julian_date,
+    equation_of_equinoxes,
+    teme_to_eci,
 )
 from .visibility import (
     sun_position_eci,
@@ -20,6 +23,9 @@ __all__ = [
     "ecef_to_geodetic",
     "geodetic_to_ecef",
     "topocentric_aer",
+    "julian_date",
+    "equation_of_equinoxes",
+    "teme_to_eci",
     "sun_position_eci",
     "check_eclipse",
     "is_optically_visible",

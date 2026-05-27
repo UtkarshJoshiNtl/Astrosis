@@ -65,7 +65,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'cpp', 'build')
 import physics_engine as pe
 states = np.random.randn({n}, 6).astype(np.float64)
 states[:, 0] += 6778.0; states[:, 4] += 7.66
-pe.cuda_propagate_batch(states, 10.0, 100)
+pe.cuda_propagate_batch_soa(states, 10.0, 100, 0, 1, 2.2, 1.5, False, 0)
 """)
     cmd = [
         "ncu", "--metrics",
@@ -206,7 +206,7 @@ if __name__ == "__main__":
                     states = np.random.randn(5000, 6).astype(np.float64)
                     states[:, 0] += 6778.0; states[:, 4] += 7.66
                     t0 = time.perf_counter()
-                    pe.cuda_propagate_batch(states, 10.0, 100)
+                    pe.cuda_propagate_batch_soa(states, 10.0, 100, 0, 1, 2.2, 1.5, False, 0)
                     elapsed = time.perf_counter() - t0
                     achieved_gflops = (flops / elapsed) / 1e9
                     has_ncu_data = True

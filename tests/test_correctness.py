@@ -407,7 +407,7 @@ def test_report_passes_converts_teme_initial_state(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "sgp4", fake_sgp4)
     monkeypatch.setitem(sys.modules, "sgp4.api", fake_api)
-    monkeypatch.setattr(analysis, "_teme_to_eci", fake_teme_to_eci)
+    monkeypatch.setattr(analysis, "teme_to_eci", fake_teme_to_eci)
 
     result = analysis.report_passes(
         0, 0.0, 0.0, 0.0, start_dt=__import__("datetime").datetime(2025, 1, 1),
@@ -416,3 +416,76 @@ def test_report_passes_converts_teme_initial_state(monkeypatch):
 
     assert result["satellite"] == "TESTSAT"
     assert len(calls) == 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. Physics: circular orbit stays circular
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_circular_orbit_eccentricity():
+    """
+    A circular orbit should maintain near-zero eccentricity over 10 orbits.
+    Eccentricity drift indicates energy non-conservation in the integrator.
+    """
+    state = tuple(_circular_orbit(500.0))
+    T = 2 * math.pi * math.sqrt((RE + 500.0)**3 / MU)
+    dt = 30.0
+    steps = int(10 * T / dt)
+
+    def eccentricity(s):
+        r = math.sqrt(sum(x*x for x in s[:3]))
+        h_vec = (s[1]*s[5] - s[2]*s[4],
+                 s[2]*s[3] - s[0]*s[5],
+                 s[0]*s[4] - s[1]*s[3])
+        hx, hy, hz = h_vec
+        vxh = (s[4]*hz - s[5]*hy,
+               s[5]*hx - s[3]*hz,
+               s[3]*hy - s[4]*hx)
+        e_vec = (vxh[0]/MU - s[0]/r,
+                 vxh[1]/MU - s[1]/r,
+                 vxh[2]/MU - s[2]/r)
+        return math.sqrt(e_vec[0]**2 + e_vec[1]**2 + e_vec[2]**2)
+
+    e0 = eccentricity(state)
+    curr = state
+    max_e = e0
+    for i in range(steps):
+        curr = rk4_step(curr, dt)
+        if i % 100 == 0:
+            max_e = max(max_e, eccentricity(curr))
+
+    assert max_e < 0.01, (
+        f"Eccentricity grew from {e0:.2e} to {max_e:.2e} over 10 orbits. "
+        "Circular orbit is not stable under J2."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. Physics: two-body analytic vs RK4
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_two_body_analytic_match():
+    """
+    RK4 (with J2 always active) should conserve orbital energy to high precision
+    over one orbit. For a circular equatorial orbit, J2 causes RAAN precession
+    but does NOT change the radial distance. Check that r stays constant.
+    """
+    from engine.constants import MU
+
+    r0 = RE + 400.0
+    v0 = math.sqrt(MU / r0)
+    T = 2 * math.pi * math.sqrt(r0**3 / MU)
+    dt = 60.0
+    steps = int(T / dt)
+
+    state = (r0, 0.0, 0.0, 0.0, v0, 0.0)
+    curr = tuple(state)
+    for _ in range(steps):
+        curr = rk4_step(curr, dt, mjd0=0.0)
+
+    rf = math.sqrt(curr[0]**2 + curr[1]**2 + curr[2]**2)
+    rel_err = abs(rf - r0) / r0
+    assert rel_err < 1e-6, (
+        f"Radial distance changed by {rel_err:.2e} after 1 orbit. "
+        "Energy is not conserved in two-body propagation."
+    )

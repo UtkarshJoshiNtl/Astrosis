@@ -5,9 +5,6 @@
 #include "cuda_bridge.h"
 #include "cuda_physics.cuh"
 #include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 #include <cmath>
 #include <vector>
 #include <stdexcept>
@@ -86,37 +83,33 @@ std::vector<ConjunctionWarning> cuda_detect_conjunctions(
 
     if (ns == 0 || nd == 0) return {};
 
-    double *ds, *dd; int *cnt;
     int max_out = std::max(ns * nd / 10, 1024);
-    GpuWarning* gout;
+    DeviceMem ds(ns*6*sizeof(double));
+    DeviceMem dd(nd*6*sizeof(double));
+    DeviceMem cnt(sizeof(int));
+    DeviceMem gout(max_out*sizeof(GpuWarning));
 
-    CUDA_CHECK(cudaMalloc(&ds,    ns*6*sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&dd,    nd*6*sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&cnt,   sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&gout,  max_out*sizeof(GpuWarning)));
-    
-    CUDA_CHECK(cudaMemcpy(ds, sat_states, ns*6*sizeof(double), cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(dd, debris_states, nd*6*sizeof(double), cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemset(cnt, 0, sizeof(int)));
+    CUDA_CHECK(cudaMemcpy(ds.ptr, sat_states, ns*6*sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(dd.ptr, debris_states, nd*6*sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(cnt.ptr, 0, sizeof(int)));
 
     dim3 blk(16, 16), grd((ns+15)/16, (nd+15)/16);
 
     // Narrow phase for all pairs
-    k_narrow<<<grd, blk>>>(ds, ns, dd, nd, gout, cnt, max_out, lookahead_s, step_s, mjd0);
+    k_narrow<<<grd, blk>>>((double*)ds.ptr, ns, (double*)dd.ptr, nd,
+                           (GpuWarning*)gout.ptr, (int*)cnt.ptr, max_out, lookahead_s, step_s, mjd0);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
     int h_cnt = 0;
-    CUDA_CHECK(cudaMemcpy(&h_cnt, cnt, sizeof(int), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&h_cnt, cnt.ptr, sizeof(int), cudaMemcpyDeviceToHost));
     h_cnt = std::min(h_cnt, max_out);
 
     std::vector<GpuWarning> hw(h_cnt);
     if (h_cnt > 0)
-        CUDA_CHECK(cudaMemcpy(hw.data(), gout, h_cnt*sizeof(GpuWarning), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(hw.data(), gout.ptr, h_cnt*sizeof(GpuWarning), cudaMemcpyDeviceToHost));
 
-    cudaFree(ds); cudaFree(dd); cudaFree(cnt); cudaFree(gout);
-
-    static const char* SEV[] = {"NONE", "ADVISORY", "WARNING", "CRITICAL"};
+    static const Severity SEV[] = {Severity::NONE, Severity::ADVISORY, Severity::WARNING, Severity::CRITICAL};
     std::vector<ConjunctionWarning> result;
     result.reserve(h_cnt);
     for (auto& w : hw) {
@@ -124,7 +117,7 @@ std::vector<ConjunctionWarning> cuda_detect_conjunctions(
         cw.sat_id = w.sat_id; cw.debris_id = w.deb_id;
         cw.current_distance = w.min_dist;
         cw.time_to_closest_approach = w.tca;
-        cw.severity = SEV[w.severity];
+        cw.severity = (w.severity >= 0 && w.severity <= 3) ? SEV[w.severity] : Severity::NONE;
         cw.relative_velocity = {w.rel_vx, w.rel_vy, w.rel_vz};
         result.push_back(cw);
     }

@@ -19,5 +19,5 @@ public:
     ManeuverPlan calculate(
         const std::array<double, 6>& sat_state,
         const ConjunctionWarning& warning
-    );
+    ) const;
 };

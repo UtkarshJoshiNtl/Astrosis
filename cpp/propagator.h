@@ -88,16 +88,16 @@ public:
         double* output_history) const;
 
 private:
-    std::array<double, 3> acceleration(const std::array<double, 3>& r, double mjd) const;
+    [[nodiscard]] std::array<double, 3> acceleration(const std::array<double, 3>& r, double mjd) const;
 
-    std::array<double, 3> acceleration_with_drag(const std::array<double, 3>& r,
-                                                  const std::array<double, 3>& v,
-                                                  double area,
-                                                  double mass,
-                                                  double cd, double cr, double mjd) const;
+    [[nodiscard]] std::array<double, 3> acceleration_with_drag(const std::array<double, 3>& r,
+                                                   const std::array<double, 3>& v,
+                                                   double area,
+                                                   double mass,
+                                                   double cd, double cr, double mjd) const;
 
-    StateVector derivatives(const StateVector& state, double mjd) const;
-    StateVector derivatives_drag(const StateVector& state,
+    [[nodiscard]] StateVector derivatives(const StateVector& state, double mjd) const;
+    [[nodiscard]] StateVector derivatives_drag(const StateVector& state,
                                  double area, double mass, double cd, double cr, double mjd) const;
 
     StateVector rk4_step(const StateVector& state, double dt, double mjd0 = 0.0, int current_step = 0) const;

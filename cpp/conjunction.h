@@ -12,18 +12,30 @@ struct PcResult {
     bool   computed;        // false if inputs were degenerate
 };
 
+enum class Severity { NONE, ADVISORY, WARNING, CRITICAL };
+
+inline std::string severity_to_string(Severity s) {
+    switch (s) {
+        case Severity::CRITICAL:  return "CRITICAL";
+        case Severity::WARNING:   return "WARNING";
+        case Severity::ADVISORY:  return "ADVISORY";
+        case Severity::NONE:      return "NONE";
+    }
+    return "NONE";
+}
+
 struct ConjunctionWarning {
     int sat_id;
     int debris_id;
     double current_distance;            // km at TCA
     double time_to_closest_approach;    // s (Brent-refined)
-    std::string severity;              // CRITICAL / WARNING / ADVISORY / NONE
+    Severity severity;                  // severity level
     std::array<double, 3> relative_velocity;  // km/s at TCA
     PcResult pc_result;
 
     ConjunctionWarning()
         : sat_id(0), debris_id(0), current_distance(0.0),
-          time_to_closest_approach(0.0), severity("NONE"),
+          time_to_closest_approach(0.0), severity(Severity::NONE),
           relative_velocity{0, 0, 0},
           pc_result{0.0, 0.0, false} {}
 };
