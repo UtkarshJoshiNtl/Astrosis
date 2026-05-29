@@ -4,22 +4,32 @@
 #include <stdexcept>
 #include <string>
 
-// ── Shared Device Constants ──────────────────────────────────────────────────
-// Declared extern here; defined in cuda_propagator.cu.
+// ── Device Constants (inline functions avoid __constant__ cross-TU issues) ──
 
-extern __constant__ double C_MU;
-extern __constant__ double C_RE;
-extern __constant__ double C_J2;
-extern __constant__ double C_J3;
-extern __constant__ double C_J4;
-extern __constant__ double C_OMEGA;
-extern __constant__ double C_MU_SUN;
-extern __constant__ double C_MU_MOON;
-extern __constant__ double C_AU;
-extern __constant__ double C_P_SR;
+__device__ __forceinline__ double C_MU()     { return 398600.4418; }
+__device__ __forceinline__ double C_RE()     { return 6378.137; }
+__device__ __forceinline__ double C_J2()     { return 1.08263e-3; }
+__device__ __forceinline__ double C_J3()     { return -2.53266e-6; }
+__device__ __forceinline__ double C_J4()     { return -1.61990e-6; }
+__device__ __forceinline__ double C_OMEGA()  { return 7.2921150e-5; }
+__device__ __forceinline__ double C_MU_SUN() { return 132712440018.0; }
+__device__ __forceinline__ double C_MU_MOON() { return 4902.800066; }
+__device__ __forceinline__ double C_AU()     { return 149597870.7; }
+__device__ __forceinline__ double C_P_SR()   { return 4.56e-6; }
 
 struct CA { double alt, H, rho0; };
-extern __constant__ CA C_ATM[28];
+__device__ __forceinline__ CA C_ATM(int i) {
+    static const CA data[28] = {
+        {0,8.44,1.225},{25,6.49,3.899e-2},{30,6.75,1.774e-2},{40,7.58,3.972e-3},
+        {50,8.55,1.057e-3},{60,7.71,3.206e-4},{70,6.55,8.770e-5},{80,5.79,1.905e-5},
+        {90,5.57,3.396e-6},{100,5.90,5.297e-7},{110,7.17,9.661e-8},{120,9.59,2.438e-8},
+        {130,12.2,8.484e-9},{140,15.5,3.845e-9},{150,19.3,2.070e-9},{180,26.0,5.464e-10},
+        {200,26.0,2.789e-10},{250,38.5,7.248e-11},{300,51.0,2.418e-11},{350,59.5,9.518e-12},
+        {400,67.6,3.725e-12},{450,76.0,1.585e-12},{500,84.0,6.967e-13},{600,105.0,1.454e-13},
+        {700,130.0,3.614e-14},{800,180.0,1.170e-14},{900,268.0,5.245e-15},{1000,1e9,3.019e-15}
+    };
+    return data[i];
+}
 
 // ── RAII Device Memory Wrapper ───────────────────────────────────────────────
 // Ensures cudaFree is called even when subsequent CUDA operations throw.
@@ -52,8 +62,8 @@ struct HostPinnedMem {
 __device__ __forceinline__ double drho(double alt) {
     if (alt < 0 || alt >= 1000) return 0.0;
     for(int i=0; i<27; i++) {
-        if(C_ATM[i].alt <= alt && alt < C_ATM[i+1].alt)
-            return C_ATM[i].rho0 * exp(-(alt - C_ATM[i].alt) / C_ATM[i].H);
+        if(C_ATM(i).alt <= alt && alt < C_ATM(i+1).alt)
+            return C_ATM(i).rho0 * exp(-(alt - C_ATM(i).alt) / C_ATM(i).H);
     }
     return 0.0;
 }
@@ -64,7 +74,7 @@ __device__ __forceinline__ void d_sun_position(double mjd, double& sx, double& s
     double q = 280.459 + 0.98564736 * d;
     double L_rad = (q + 1.915 * sin(g_rad) + 0.020 * sin(2 * g_rad)) * (M_PI / 180.0);
     double R_au = 1.00014 - 0.01671 * cos(g_rad) - 0.00014 * cos(2 * g_rad);
-    double R_km = R_au * C_AU;
+    double R_km = R_au * C_AU();
     double e_rad = (23.439 - 0.00000036 * d) * (M_PI / 180.0);
     
     sx = R_km * cos(L_rad);
@@ -106,32 +116,32 @@ __device__ __forceinline__ void accel(
     double x, double y, double z, double mjd, double& ax, double& ay, double& az) {
     double r2 = x*x + y*y + z*z, rm = sqrt(r2);
     double r3 = r2 * rm, r5 = r3 * r2, r7 = r5 * r2;
-    ax = -C_MU * x / r3; ay = -C_MU * y / r3; az = -C_MU * z / r3;
+    ax = -C_MU() * x / r3; ay = -C_MU() * y / r3; az = -C_MU() * z / r3;
     
     double z2r2 = z*z / r2;
-    double j2f = 1.5 * C_J2 * C_MU * C_RE * C_RE / r5;
+    double j2f = 1.5 * C_J2() * C_MU() * C_RE() * C_RE() / r5;
     ax += j2f * x * (5.0 * z2r2 - 1.0);
     ay += j2f * y * (5.0 * z2r2 - 1.0);
     az += j2f * z * (5.0 * z2r2 - 3.0);
     
     // J3
-    double j3f = -2.5 * C_J3 * C_MU * C_RE * C_RE * C_RE / r7;
+    double j3f = -2.5 * C_J3() * C_MU() * C_RE() * C_RE() * C_RE() / r7;
     ax += j3f * x * (7.0 * z2r2 * z - 3.0 * z);
     ay += j3f * y * (7.0 * z2r2 * z - 3.0 * z);
     az += j3f * (7.0 * z2r2 * z * z - 6.0 * z * z + 0.6 * r2);
     
     double z4r4 = z2r2 * z2r2;
-    double j4f = (5.0 / 8.0) * C_J4 * C_MU * C_RE * C_RE * C_RE * C_RE / r7;
+    double j4f = (5.0 / 8.0) * C_J4() * C_MU() * C_RE() * C_RE() * C_RE() * C_RE() / r7;
     ax += j4f * x * (3.0 - 42.0 * z2r2 + 63.0 * z4r4);
     ay += j4f * y * (3.0 - 42.0 * z2r2 + 63.0 * z4r4);
     az += j4f * z * (15.0 - 70.0 * z2r2 + 63.0 * z4r4);
 
     if (mjd > 0.0) {
         double sx, sy, sz; d_sun_position(mjd, sx, sy, sz);
-        d_third_body(x, y, z, sx, sy, sz, C_MU_SUN, ax, ay, az);
+        d_third_body(x, y, z, sx, sy, sz, C_MU_SUN(), ax, ay, az);
         
         double mx, my, mz; d_moon_position(mjd, mx, my, mz);
-        d_third_body(x, y, z, mx, my, mz, C_MU_MOON, ax, ay, az);
+        d_third_body(x, y, z, mx, my, mz, C_MU_MOON(), ax, ay, az);
     }
 }
 
@@ -139,11 +149,11 @@ __device__ __forceinline__ void accel_drag(
     double x, double y, double z, double vx, double vy, double vz,
     double A, double m, double cd, double cr, double mjd, double& ax, double& ay, double& az) {
     accel(x, y, z, mjd, ax, ay, az);
-    double r_mag = sqrt(x*x + y*y + z*z), alt = r_mag - C_RE;
+    double r_mag = sqrt(x*x + y*y + z*z), alt = r_mag - C_RE();
     if(alt >= 0 && alt < 1000) {
         double rho = drho(alt);
-        double vrx = vx + C_OMEGA * y;
-        double vry = vy - C_OMEGA * x;
+        double vrx = vx + C_OMEGA() * y;
+        double vry = vy - C_OMEGA() * x;
         double vrz = vz;
         double vm = sqrt(vrx*vrx + vry*vry + vrz*vrz);
         if(vm > 0) {
@@ -161,14 +171,14 @@ __device__ __forceinline__ void accel_drag(
         if (dot_prod < 0) {
             double proj = dot_prod / rs_mag;
             double d_perp2 = max(0.0, r_mag*r_mag - proj*proj);
-            if (sqrt(d_perp2) < C_RE) shadow = 0.0;
+            if (sqrt(d_perp2) < C_RE()) shadow = 0.0;
         }
         
         if (shadow > 0.0) {
             double dx = x - sx, dy = y - sy, dz = z - sz;
-            double au_scale = C_AU / rs_mag;
+            double au_scale = C_AU() / rs_mag;
             au_scale *= au_scale;
-            double coeff = C_P_SR * cr * (A / m) * shadow * au_scale * 1e-3;
+            double coeff = C_P_SR() * cr * (A / m) * shadow * au_scale * 1e-3;
             ax += coeff * dx; ay += coeff * dy; az += coeff * dz;
         }
     }
