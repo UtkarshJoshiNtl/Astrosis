@@ -20,7 +20,14 @@ import pytest
 import numpy as np
 
 from engine.core.propagator import rk4_step
-from engine.constants import MU, RE, J2, CRITICAL_DISTANCE, WARNING_DISTANCE, ADVISORY_DISTANCE
+from engine.constants import (
+    MU,
+    RE,
+    J2,
+    CRITICAL_DISTANCE,
+    WARNING_DISTANCE,
+    ADVISORY_DISTANCE,
+)
 from engine.core.accelerator import (
     propagate,
     propagate_batch,
@@ -28,15 +35,15 @@ from engine.core.accelerator import (
     backend_info,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _orbital_energy(state):
-    r = math.sqrt(sum(x*x for x in state[:3]))
-    v = math.sqrt(sum(x*x for x in state[3:]))
-    return 0.5 * v*v - MU / r
+    r = math.sqrt(sum(x * x for x in state[:3]))
+    v = math.sqrt(sum(x * x for x in state[3:]))
+    return 0.5 * v * v - MU / r
 
 
 def _circular_orbit(altitude_km=400.0, inclination_deg=0.0):
@@ -44,13 +51,13 @@ def _circular_orbit(altitude_km=400.0, inclination_deg=0.0):
     r = RE + altitude_km
     v = math.sqrt(MU / r)
     inc = math.radians(inclination_deg)
-    return [r, 0.0, 0.0,
-            0.0, v * math.cos(inc), v * math.sin(inc)]
+    return [r, 0.0, 0.0, 0.0, v * math.cos(inc), v * math.sin(inc)]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Energy Conservation
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_energy_conservation_one_orbit():
     """
@@ -58,7 +65,7 @@ def test_energy_conservation_one_orbit():
     This catches first-order integration mistakes and wrong gravity sign/magnitude.
     """
     state = tuple(_circular_orbit(400.0))
-    T_orbit = 2 * math.pi * math.sqrt((RE + 400.0)**3 / MU)
+    T_orbit = 2 * math.pi * math.sqrt((RE + 400.0) ** 3 / MU)
     dt = 10.0
     n_steps = int(T_orbit / dt)
 
@@ -99,6 +106,7 @@ def test_energy_conservation_24h():
 # 2. RK4 Convergence Order
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_rk4_fourth_order_convergence():
     """
     Halving the step size must reduce global error by ≥ 14× (expect 16× for RK4).
@@ -117,8 +125,12 @@ def test_rk4_fourth_order_convergence():
     # Reference: very fine integration over the same elapsed time.
     ref = propagate_n_steps(2.0)
 
-    err_coarse = math.sqrt(sum((propagate_n_steps(60.0)[k] - ref[k])**2 for k in range(3)))
-    err_fine   = math.sqrt(sum((propagate_n_steps(30.0)[k] - ref[k])**2 for k in range(3)))
+    err_coarse = math.sqrt(
+        sum((propagate_n_steps(60.0)[k] - ref[k]) ** 2 for k in range(3))
+    )
+    err_fine = math.sqrt(
+        sum((propagate_n_steps(30.0)[k] - ref[k]) ** 2 for k in range(3))
+    )
 
     ratio = err_coarse / max(err_fine, 1e-15)
     assert ratio >= 14.0, (
@@ -131,22 +143,23 @@ def test_rk4_fourth_order_convergence():
 # 3. Conjunction Detection — correctness (not just performance)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_conjunction_detects_critical():
     """
     Two objects 0.05 km apart at t=0 must produce a CRITICAL warning.
     current_distance must be < CRITICAL_DISTANCE, not just 'less than 1.0'.
     """
-    sat   = [-RE - 400.0, 0.0, 0.0, 0.0, math.sqrt(MU / (RE + 400.0)), 0.0]
-    deb   = [-RE - 400.05, 0.0, 0.0, 0.0, math.sqrt(MU / (RE + 400.0)), 0.0]
+    sat = [-RE - 400.0, 0.0, 0.0, 0.0, math.sqrt(MU / (RE + 400.0)), 0.0]
+    deb = [-RE - 400.05, 0.0, 0.0, 0.0, math.sqrt(MU / (RE + 400.0)), 0.0]
     warns = detect_conjunctions([sat], [deb], lookahead=3600.0, step_s=60.0)
 
     assert len(warns) > 0, "Expected at least one conjunction warning"
-    assert warns[0].severity == "CRITICAL", (
-        f"Expected CRITICAL for 0.05 km separation, got {warns[0].severity}"
-    )
-    assert warns[0].current_distance < CRITICAL_DISTANCE, (
-        f"Distance {warns[0].current_distance:.4f} km should be < {CRITICAL_DISTANCE} km"
-    )
+    assert (
+        warns[0].severity == "CRITICAL"
+    ), f"Expected CRITICAL for 0.05 km separation, got {warns[0].severity}"
+    assert (
+        warns[0].current_distance < CRITICAL_DISTANCE
+    ), f"Distance {warns[0].current_distance:.4f} km should be < {CRITICAL_DISTANCE} km"
 
 
 def test_conjunction_detects_advisory():
@@ -160,9 +173,9 @@ def test_conjunction_detects_advisory():
 
     assert len(warns) > 0, "Expected ADVISORY warning for 3 km separation"
     severities = {w.severity for w in warns}
-    assert "ADVISORY" in severities or "WARNING" in severities or "CRITICAL" in severities, (
-        f"Expected ADVISORY/WARNING/CRITICAL, got {severities}"
-    )
+    assert (
+        "ADVISORY" in severities or "WARNING" in severities or "CRITICAL" in severities
+    ), f"Expected ADVISORY/WARNING/CRITICAL, got {severities}"
 
 
 def test_conjunction_finds_converging_pairs():
@@ -194,9 +207,9 @@ def test_conjunction_tca_accuracy():
     assert len(warns) > 0
     tca = warns[0].time_to_closest_approach
     # TCA should be very early (objects nearly colocated at t=0)
-    assert tca < step * 2, (
-        f"TCA={tca:.1f}s is too far from expected t≈0. Brent refinement may be broken."
-    )
+    assert (
+        tca < step * 2
+    ), f"TCA={tca:.1f}s is too far from expected t≈0. Brent refinement may be broken."
 
 
 def test_python_conjunction_scans_partial_final_window(monkeypatch):
@@ -212,14 +225,16 @@ def test_python_conjunction_scans_partial_final_window(monkeypatch):
             t = step * dt_seconds
             rows = []
             for state in states:
-                rows.append([
-                    state[0] + state[3] * t,
-                    state[1] + state[4] * t,
-                    state[2] + state[5] * t,
-                    state[3],
-                    state[4],
-                    state[5],
-                ])
+                rows.append(
+                    [
+                        state[0] + state[3] * t,
+                        state[1] + state[4] * t,
+                        state[2] + state[5] * t,
+                        state[3],
+                        state[4],
+                        state[5],
+                    ]
+                )
             history.append(rows)
         return np.array(history, dtype=np.float64)
 
@@ -248,13 +263,16 @@ def test_python_conjunction_scans_partial_final_window(monkeypatch):
         )
 
     import engine.core.accelerator as accelerator_mod
+
     monkeypatch.setattr(accelerator_mod, "propagate_batch_full_history", linear_history)
     monkeypatch.setattr(conjunction_mod, "propagate_batch_numpy", linear_batch)
     monkeypatch.setattr(conjunction_mod, "rk4_step", linear_step)
 
     sat = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     deb = [11.0, 0.0, 0.0, -0.1, 0.0, 0.0]
-    warns = conjunction_mod.ConjunctionDetector().detect([sat], [deb], lookahead_s=65.0, step_s=60.0)
+    warns = conjunction_mod.ConjunctionDetector().detect(
+        [sat], [deb], lookahead_s=65.0, step_s=60.0
+    )
 
     assert warns, "Expected advisory warning in the partial final interval"
     assert warns[0].time_to_closest_approach > 60.0
@@ -263,6 +281,7 @@ def test_python_conjunction_scans_partial_final_window(monkeypatch):
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Batch Propagation Equivalence
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_batch_matches_single():
     """
@@ -307,7 +326,7 @@ def test_cpp_incremental_propagation():
     incorrect_s2 = rk4_step(state, dt)
 
     # s2 should differ from incorrect_s2
-    diff = math.sqrt(sum((s2[k] - incorrect_s2[k])**2 for k in range(3)))
+    diff = math.sqrt(sum((s2[k] - incorrect_s2[k]) ** 2 for k in range(3)))
     assert diff > 0.001, (
         "Incremental vs re-propagated states are identical. "
         "Propagation may not be using the previous state correctly."
@@ -317,6 +336,7 @@ def test_cpp_incremental_propagation():
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. Backend Availability
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_backend_info_returns_dict():
     info = backend_info()
@@ -332,6 +352,37 @@ def test_propagate_returns_six_elements():
     assert len(result) == 6
     for v in result:
         assert math.isfinite(v), f"Non-finite value in propagated state: {result}"
+
+
+def test_mock_gpu_disables_cuda():
+    """
+    Setting ASTROSIS_MOCK_GPU=1 must force the CUDA backend off.
+    Propagation must still succeed via CPU fallback.
+    """
+    import subprocess
+
+    code = (
+        "import os, math\n"
+        "os.environ['ASTROSIS_MOCK_GPU'] = '1'\n"
+        "from engine.core.accelerator import backend_info, propagate\n"
+        "from engine.constants import MU, RE\n"
+        "info = backend_info()\n"
+        "assert info['cuda'] is False, f'CUDA should be disabled: {info}'\n"
+        "state = [RE + 400.0, 0.0, 0.0, 0.0, math.sqrt(MU / (RE + 400.0)), 0.0]\n"
+        "res = propagate(state, 10.0)\n"
+        "assert len(res) == 6\n"
+        "for v in res:\n"
+        "    assert math.isfinite(v)\n"
+        "print('Mock GPU: OK')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=".",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "Mock GPU: OK", result.stderr
 
 
 def test_engine_core_import_is_lazy():
@@ -374,19 +425,26 @@ def test_report_passes_converts_teme_initial_state(monkeypatch):
 
     class FakeIngestor:
         def get_satellites(self, **_kwargs):
-            return [{
-                "satellite_name": "TESTSAT",
-                "line1": "1 00000U 00000A   25001.00000000  .00000000  00000+0  00000+0 0  0000",
-                "line2": "2 00000   0.0000   0.0000 0000000   0.0000   0.0000  1.00000000    00",
-            }]
+            return [
+                {
+                    "satellite_name": "TESTSAT",
+                    "line1": "1 00000U 00000A   25001.00000000  .00000000  00000+0  00000+0 0  0000",
+                    "line2": "2 00000   0.0000   0.0000 0000000   0.0000   0.0000  1.00000000    00",
+                }
+            ]
 
     monkeypatch.setitem(sys.modules, "sgp4", fake_sgp4)
     monkeypatch.setitem(sys.modules, "sgp4.api", fake_api)
     monkeypatch.setattr(analysis, "teme_to_eci", fake_teme_to_eci)
 
     result = analysis.report_passes(
-        0, 0.0, 0.0, 0.0, start_dt=__import__("datetime").datetime(2025, 1, 1),
-        hours=0.0, ingestor=FakeIngestor()
+        0,
+        0.0,
+        0.0,
+        0.0,
+        start_dt=__import__("datetime").datetime(2025, 1, 1),
+        hours=0.0,
+        ingestor=FakeIngestor(),
     )
 
     assert result["satellite"] == "TESTSAT"
@@ -397,29 +455,28 @@ def test_report_passes_converts_teme_initial_state(monkeypatch):
 # 7. Physics: circular orbit stays circular
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_circular_orbit_eccentricity():
     """
     A circular orbit should maintain near-zero eccentricity over 10 orbits.
     Eccentricity drift indicates energy non-conservation in the integrator.
     """
     state = tuple(_circular_orbit(500.0))
-    T = 2 * math.pi * math.sqrt((RE + 500.0)**3 / MU)
+    T = 2 * math.pi * math.sqrt((RE + 500.0) ** 3 / MU)
     dt = 30.0
     steps = int(10 * T / dt)
 
     def eccentricity(s):
-        r = math.sqrt(sum(x*x for x in s[:3]))
-        h_vec = (s[1]*s[5] - s[2]*s[4],
-                 s[2]*s[3] - s[0]*s[5],
-                 s[0]*s[4] - s[1]*s[3])
+        r = math.sqrt(sum(x * x for x in s[:3]))
+        h_vec = (
+            s[1] * s[5] - s[2] * s[4],
+            s[2] * s[3] - s[0] * s[5],
+            s[0] * s[4] - s[1] * s[3],
+        )
         hx, hy, hz = h_vec
-        vxh = (s[4]*hz - s[5]*hy,
-               s[5]*hx - s[3]*hz,
-               s[3]*hy - s[4]*hx)
-        e_vec = (vxh[0]/MU - s[0]/r,
-                 vxh[1]/MU - s[1]/r,
-                 vxh[2]/MU - s[2]/r)
-        return math.sqrt(e_vec[0]**2 + e_vec[1]**2 + e_vec[2]**2)
+        vxh = (s[4] * hz - s[5] * hy, s[5] * hx - s[3] * hz, s[3] * hy - s[4] * hx)
+        e_vec = (vxh[0] / MU - s[0] / r, vxh[1] / MU - s[1] / r, vxh[2] / MU - s[2] / r)
+        return math.sqrt(e_vec[0] ** 2 + e_vec[1] ** 2 + e_vec[2] ** 2)
 
     e0 = eccentricity(state)
     curr = state
@@ -438,6 +495,7 @@ def test_circular_orbit_eccentricity():
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. Physics: two-body analytic vs RK4
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_two_body_analytic_match():
     """
@@ -458,7 +516,7 @@ def test_two_body_analytic_match():
     for _ in range(steps):
         curr = rk4_step(curr, dt, mjd0=0.0)
 
-    rf = math.sqrt(curr[0]**2 + curr[1]**2 + curr[2]**2)
+    rf = math.sqrt(curr[0] ** 2 + curr[1] ** 2 + curr[2] ** 2)
     rel_err = abs(rf - r0) / r0
     assert rel_err < 1e-6, (
         f"Radial distance changed by {rel_err:.2e} after 1 orbit. "

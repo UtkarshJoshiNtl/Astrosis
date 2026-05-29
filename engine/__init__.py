@@ -48,6 +48,7 @@ _LAZY_EXPORTS = {
     "propagate_batch": (".core", "propagate_batch"),
     "detect_conjunctions": (".core", "detect_conjunctions"),
     "backend_info": (".core", "backend_info"),
+    "monte_carlo_pc": (".core", "monte_carlo_pc"),
     "sun_position_eci_mjd": (".core", "sun_position_eci"),
     "sun_position_eci": (".geo", "sun_position_eci"),
     "moon_position_eci": (".core", "moon_position_eci"),

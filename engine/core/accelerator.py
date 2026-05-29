@@ -1,3 +1,4 @@
+import math
 import sys
 import os
 import logging
@@ -29,7 +30,9 @@ _physics = _load_physics()
 
 _MOCK_GPU = os.environ.get("ASTROSIS_MOCK_GPU", "").lower() in ("1", "true", "yes")
 _HAS_CPP = _physics is not None
-_HAS_CUDA = _HAS_CPP and not _MOCK_GPU and getattr(_physics, "cuda_available", lambda: False)()
+_HAS_CUDA = (
+    _HAS_CPP and not _MOCK_GPU and getattr(_physics, "cuda_available", lambda: False)()
+)
 _HAS_BATCH_CPP = _HAS_CPP and hasattr(_physics.Propagator, "batch_propagate_steps")
 
 if _HAS_CUDA:
@@ -359,3 +362,75 @@ def detect_conjunctions(
     return detector.detect(
         sat_states, debris_states, lookahead_s=lookahead, step_s=step_s, mjd0=mjd0
     )
+
+
+def _monte_carlo_pc_python(
+    sat_samples: np.ndarray,
+    deb_samples: np.ndarray,
+    dt: float,
+    steps: int,
+    threshold_km: float,
+    mjd0: float = 0.0,
+) -> float:
+    n = sat_samples.shape[0]
+    collisions = 0
+    for i in range(n):
+        s = tuple(sat_samples[i])
+        d = tuple(deb_samples[i])
+        min_dist = math.inf
+        for step in range(steps + 1):
+            dx = s[0] - d[0]
+            dy = s[1] - d[1]
+            dz = s[2] - d[2]
+            dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+            if dist < min_dist:
+                min_dist = dist
+            if step < steps:
+                s = rk4_step(s, dt, mjd0, step)
+                d = rk4_step(d, dt, mjd0, step)
+        if min_dist < threshold_km:
+            collisions += 1
+    return collisions / n if n > 0 else 0.0
+
+
+def monte_carlo_pc(
+    sat_samples: list,
+    deb_samples: list,
+    dt: float,
+    steps: int,
+    threshold_km: float,
+    mjd0: float = 0.0,
+) -> float:
+    """
+    Monte Carlo collision probability estimation.
+
+    Propagates N sample pairs forward and counts those that pass
+    within threshold_km. Uses CUDA if available, falls back to Python.
+
+    Args:
+        sat_samples: List of N satellite ECI state vectors.
+        deb_samples: List of N debris ECI state vectors.
+        dt: Propagation step in seconds.
+        steps: Number of integration steps.
+        threshold_km: Collision sphere radius in km.
+        mjd0: Modified Julian Date at epoch.
+
+    Returns:
+        Estimated collision probability Pc ∈ [0, 1].
+    """
+    sat_arr = np.array(sat_samples, dtype=np.float64)
+    deb_arr = np.array(deb_samples, dtype=np.float64)
+
+    if _HAS_CUDA:
+        try:
+            return float(
+                _physics.cuda_monte_carlo_pc(
+                    sat_arr, deb_arr, dt, steps, threshold_km, mjd0
+                )
+            )
+        except Exception as e:
+            logger.warning(
+                "CUDA monte_carlo_pc failed, falling back: %s", e, exc_info=True
+            )
+
+    return _monte_carlo_pc_python(sat_arr, deb_arr, dt, steps, threshold_km, mjd0)
