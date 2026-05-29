@@ -11,7 +11,7 @@ def main():
     logger = logging.getLogger("Astrosis")
 
     parser = argparse.ArgumentParser(
-        description="Astrosis Orbital Simulator & Analysis Engine"
+        description="Astrosis Orbital Mechanics Calculator"
     )
     parser.add_argument("--version", action="version", version="Astrosis 0.1.0")
     parser.add_argument("--mock-gpu", action="store_true",
@@ -21,10 +21,6 @@ def main():
     fetch_parser = subparsers.add_parser("fetch", help="Fetch and cache TLE data")
     fetch_parser.add_argument("--id", type=str, help="NORAD ID")
     fetch_parser.add_argument("--force", action="store_true", help="Force refresh")
-
-    run_parser = subparsers.add_parser("run", help="Run simulation propagation")
-    run_parser.add_argument("--steps", type=int, default=100, help="Number of steps")
-    run_parser.add_argument("--dt", type=float, default=60.0, help="Step size (s)")
 
     passes_parser = subparsers.add_parser("passes", help="Predict satellite passes")
     passes_parser.add_argument("--id", type=int, required=True, help="NORAD ID")
@@ -53,28 +49,16 @@ def main():
         os.environ["ASTROSIS_MOCK_GPU"] = "1"
         logger.info("Mock GPU enabled — forcing CPU backend")
 
-    # Deferred imports: engine/simulation.py -> accelerator.py loads at import time,
-    # so we must set MOCK_GPU env var before importing engine modules.
-    from .io.data import tle_ingestor
-    from .simulation import SimulationContext
-    from .geo.analysis import report_passes
+    if args.command == "fetch":
+        from .io.data import tle_ingestor
         satellites = tle_ingestor.get_satellites(
             satellite_id=args.id, force_refresh=args.force
         )
         logger.info(f"Processed {len(satellites)} TLE entries.")
 
-    elif args.command == "run":
-        ctx = SimulationContext(start_time=0.0)
-        satellites = tle_ingestor.get_satellites(force_refresh=False)
-        for step in range(args.steps):
-            ctx.advance_time(args.dt)
-            if step % max(1, args.steps // 10) == 0:
-                logger.info(f"Step {step}/{args.steps} (t={ctx.simulation_time:.1f}s)")
-        logger.info(
-            f"Finished {args.steps} steps at dt={args.dt}s. Output not yet wired."
-        )
-
     elif args.command == "passes":
+        from .geo.analysis import report_passes
+
         start_dt = datetime.now(timezone.utc).replace(tzinfo=None)
         logger.info(
             f"Passes for {args.id} from {start_dt.isoformat()}Z, {args.hours}h."
