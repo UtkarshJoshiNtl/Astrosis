@@ -23,10 +23,11 @@ ncu --version
 ```bash
 # Run with Nsight Compute
 ncu -o profile_prop python -c "
-from engine.simulation import SimulationContext
-sim = SimulationContext(backend='CUDA')
-satellites = [sim.load_tle(str(i)) for i in range(1000)]
-trajectory = sim.propagate(satellites, hours=24, dt_seconds=10)
+import numpy as np
+from engine.core.accelerator import propagate_batch
+from engine.constants import RE, MU
+states = [[RE + 400 + i * 0.1, 0, 0, 0, 7.66, 0] for i in range(1000)]
+result = propagate_batch(states, dt_seconds=10, steps=8640)
 "
 
 # View results

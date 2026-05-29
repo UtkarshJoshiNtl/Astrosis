@@ -189,8 +189,6 @@ Position uncertainty is estimated from TLE age: `σ ≈ 0.3 × sqrt(TLE_age_days
 
 **For researchers:** The [validation/](../validation/) directory contains all verification code. Reproduce our results or extend the physics models.
 
-**For operators:** The [engine/](../engine/) provides a stable API for integration into operational systems.
-
 **For contributors:** See [README.md](../README.md) for development setup and contribution guidelines.
 
 ---

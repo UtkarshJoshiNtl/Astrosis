@@ -1,0 +1,33 @@
+{
+  "name": "Astrosis",
+  "description": "CLI orbital mechanics calculator",
+  "instructions": ["AGENTS.md"],
+  "include": [
+    "engine/**/*.py",
+    "cpp/**",
+    "tests/**",
+    "benchmarks/**",
+    "validation/**/*.py",
+    "scripts/**",
+    "docs/**",
+    "main.py",
+    "pyproject.toml",
+    "requirements.txt",
+    "build-backends.sh",
+    "opencode.json",
+    "AGENTS.md"
+  ],
+  "exclude": [
+    "venv/**",
+    "__pycache__/**",
+    "data/**",
+    "graphify-out/**",
+    "validation/plots/**",
+    "cpp/build/**",
+    "node_modules/**",
+    "dist/**",
+    ".git/**",
+    ".mypy_cache/**",
+    ".pytest_cache/**"
+  ]
+}
