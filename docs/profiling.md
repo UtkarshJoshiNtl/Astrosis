@@ -58,10 +58,14 @@ ncu -i profile_prop.ncu-rep  # Interactive viewer
 
 ```bash
 ncu -o profile_conj python -c "
-from engine.simulation import SimulationContext
-sim = SimulationContext(backend='CUDA')
-sats = [sim.load_tle(str(i % 25544 + 1)) for i in range(1000)]
-conj = sim.conjunction_assessment(sats, threshold_km=1.0)
+import numpy as np
+from engine.core.accelerator import detect_conjunctions
+# Generate test satellite and debris states
+r = 7000.0
+v = 7.5
+sats = [[r + i * 0.5, 0, 0, 0, v, 0] for i in range(100)]
+debs = [[r, i * 0.5, 0, 0, -v, 0] for i in range(100)]
+warns = detect_conjunctions(sats, debs, lookahead=36000, step_s=60)
 "
 ```
 
@@ -84,9 +88,11 @@ For C++/OpenMP kernels:
 ```bash
 # Profile with perf (Linux)
 perf record -g python -c "
-from engine.simulation import SimulationContext
-sim = SimulationContext(backend='CPP')
-trajectory = sim.propagate([...], hours=24)
+import numpy as np
+from engine.core.accelerator import propagate_batch
+n = 1000; r = 7000.0; v = 7.5
+states = np.array([[r, 0, 0, 0, v, 0] for _ in range(n)])
+result = propagate_batch(states, dt_seconds=10, steps=8640)
 "
 
 # View results
@@ -110,9 +116,11 @@ export OMPT_TOOL_VERBOSE_INIT=2
 export OMP_NUM_THREADS=6
 
 perf record python -c "
-from engine.simulation import SimulationContext
-sim = SimulationContext(backend='CPP')
-trajectory = sim.propagate([1000 satellites], hours=24)
+import numpy as np
+from engine.core.accelerator import propagate_batch
+n = 1000; r = 7000.0; v = 7.5
+states = np.array([[r, 0, 0, 0, v, 0] for _ in range(n)])
+result = propagate_batch(states, dt_seconds=10, steps=8640)
 "
 ```
 
@@ -149,9 +157,11 @@ watch -n 0.1 nvidia-smi
 
 ```bash
 valgrind --tool=massif python -c "
-from engine.simulation import SimulationContext
-sim = SimulationContext(backend='CPP')
-trajectory = sim.propagate([1000 satellites], hours=24)
+import numpy as np
+from engine.core.accelerator import propagate_batch
+n = 1000; r = 7000.0; v = 7.5
+states = np.array([[r, 0, 0, 0, v, 0] for _ in range(n)])
+result = propagate_batch(states, dt_seconds=10, steps=8640)
 "
 
 # View results

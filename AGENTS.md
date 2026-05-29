@@ -16,7 +16,7 @@ CLI-only orbital mechanics calculator. No frontend, no server.
 | Install deps | `pip install -r requirements.txt` |
 | Build C++/CUDA | `./build-backends.sh` (auto-detects CUDA) |
 | Run CLI | `python main.py <command>` |
-| Tests | `pytest tests/test_correctness.py -v` |
+| Tests | `pytest tests/test_correctness.py -v` (17 tests) |
 | Lint | `flake8 engine/` |
 | Format check | `black --check engine/` |
 | Typecheck | `mypy engine/ --ignore-missing-imports` (best-effort; CI passes with `|| true`) |
@@ -38,11 +38,13 @@ CI order (`.github/workflows/ci.yml`): `flake8` → `black --check` → `mypy \|
 ## C++/CUDA specifics
 - CMake in `cpp/`, flag `-DUSE_CUDA=ON/OFF`, default GPU arch `sm_75`
 - Compile flags: `-O3 -march=native -ffast-math` (C++), `--use_fast_math -lineinfo` (CUDA)
-- `__constant__` variables single-source in `cuda_constants.cu`, `extern` in `cuda_physics.cuh` — do NOT add `static __constant__` in headers (UB)
+- `__constant__` variables single-source in `cuda_physics.cuh`, `extern` in same header — do NOT add `static __constant__` in headers (UB)
 - RAII wrappers: use `DeviceMem` / `HostPinnedMem` in `cuda_physics.cuh`, not raw `cudaMalloc`
 - Brent minimiser: `brent_minimise<F>` in `conjunction.cpp` — templated, no `std::function`
 - CUDA conjunction: 2-phase `k_prepropagate` (SoA per timestep) + `k_scan_pairs` (coalesced reads)
-- C++ Brent refinement propagates from saved bracket-left state, not from t = 0
+- C++ conjunction: pre-propagates all objects via `batch_propagate_full_history`, then pairwise distance scan + Brent refinement from nearest pre-propagated frame
+- `monte_carlo_pc()` in `engine/core/accelerator.py` — CUDA → Python fallback
+- `engine/__main__.py` enables `python -m engine`
 
 ## Pre-commit hooks
 black, ruff, clang-format (C++/CUDA), trailing-whitespace, end-of-file-fixer, check-yaml, check-json. Install: `pre-commit install`

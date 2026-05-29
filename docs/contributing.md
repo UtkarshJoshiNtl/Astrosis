@@ -23,14 +23,14 @@ pip install pytest black flake8 mypy
 pytest tests/test_correctness.py -v
 ```
 
-All tests are in a single file. Categories:
+All tests are in a single file (17 total). Categories:
 - Energy conservation (1 orbit, 24h)
 - RK4 4th-order convergence
-- Conjunction detection (critical, advisory, converging pairs)
-- TCA accuracy (Brent refinement)
+- Conjunction detection (critical, advisory, converging pairs, TCA accuracy, partial window)
 - Batch propagation equivalence
 - Backend info and propagate API
-- Two-body analytic match
+- Mock GPU environment override
+- Circular orbit stability, two-body analytic match
 
 ### Physics Validation
 

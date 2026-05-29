@@ -30,7 +30,7 @@ All benchmarks are conducted using the following standardized setup:
 | --------------------------------------------------- | ----------------- | ------------------------ | ------------------------ |
 | Single Satellite (50k steps)                        | 395 ± 8 ms        | **18x** (21.9 ± 1.2 ms)  | N/A                      |
 | Constellation Propagation (1k sats, 24h @ dt=10s)   | 7,034 ± 145 ms    | **507x** (13.9 ± 0.8 ms) | **150x** (46.9 ± 2.1 ms) |
-| Collision Screening (400×400 pairs, TCA refinement) | 46,718 ± 892 ms   | **9x** (5,159 ± 312 ms)  | **83x** (564 ± 18 ms)    |
+| Collision Screening (400×400 pairs, TCA refinement) | 46,718 ± 892 ms   | **9x** (5,159 ± 312 ms)¹ | **83x** (564 ± 18 ms)    |
 
 **Key Notes:**
 
@@ -38,6 +38,7 @@ All benchmarks are conducted using the following standardized setup:
 - State vector dimension: 6 (position + velocity)
 - Collision screening includes all pairwise distance computations + 5-iteration TCA refinement per conjunction candidate
 - Error bars represent ±1 standard deviation
+- ¹ C++ conjunction was since optimized from per-pair propagation to pre-propagation + broad-phase spatial culling (same algorithm as CUDA). Benchmarks not yet re-run for this path.
 
 ---
 

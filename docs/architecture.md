@@ -93,13 +93,16 @@ info = backend_info()  # Shows active backend, CUDA availability
 
 **Accelerator** (`accelerator.py`):
 - Auto-backend selection: CUDA → C++/OpenMP → NumPy → Python
-- `propagate()`, `propagate_batch()`, `detect_conjunctions()`, `backend_info()`
+- `propagate()`, `propagate_batch()`, `detect_conjunctions()`, `backend_info()`, `monte_carlo_pc()`
 - Mock GPU via `ASTROSIS_MOCK_GPU=1`
 
 **Ephemeris** (`ephemeris.py`):
 - Solar/lunar position (low-precision analytical)
 - Julian Date handling
 - Epoch conversions
+
+**Module entry** (`__main__.py`):
+- Enables `python -m engine` as an alternative to `python main.py`
 
 ### `engine/geo/` — Coordinate Transformations
 
@@ -139,8 +142,7 @@ cpp/
 ├── conjunction.cpp/.h      # C++ conjunction + Brent minimiser
 ├── cuda_propagator.cu      # CUDA kernels: k_prop_soa, k_history, run_streamed
 ├── cuda_conjunction.cu     # CUDA kernels: k_prepropagate, k_scan_pairs
-├── cuda_constants.cu       # Single-source __constant__ definitions
-├── cuda_physics.cuh        # RAII wrappers (DeviceMem, HostPinnedMem) + accel()
+├── cuda_physics.cuh        # Device inline constants, RAII wrappers (DeviceMem, HostPinnedMem) + accel()
 ├── cuda_bridge.h           # C++ declarations for CUDA functions
 └── build/physics_engine.cpython-*.so  # pybind11 shared module
 ```
@@ -220,9 +222,9 @@ make -j$(nproc)
 │
 │  Speedup vs naive: ~250× (150M → 600K propagations)
 │
-├─ C++: Brent refinement on detected candidates
-│  Propagates from saved bracket-left state (sat_lo/deb_lo)
-│  At most 2× step_s per refinement
+├─ C++: Pre-propagates all objects via batch_propagate_full_history,
+│  then pairwise distance scan + Brent refinement from nearest frame
+│  At most 1× rk4_step per refinement evaluation
 │
 └─ Return: vector<ConjunctionWarning>
 ```
@@ -284,8 +286,8 @@ See `.env.example`:
 
 ## Testing & Validation Strategy
 
-- **Unit tests:** `tests/test_correctness.py` (16 tests: energy, RK4 order, conjunction, batch propagation)
-- **Physics validation:** `validation/validate_physics.py` (4 tests: energy 24h, SGP4 comparison, RAAN precession, RK4 convergence order)
+- **Unit tests:** `tests/test_correctness.py` (17 tests: energy, RK4 order, conjunction, batch, mock GPU, backend, propagation)
+- **Physics validation:** `validation/validate_physics.py` (5 tests: energy 24h, SGP4 comparison, RAAN precession, RK4 convergence order, SRP divergence)
 - **SGP4 research:** `validation/sgp4_vs_rk4.py` (72-hour divergence analysis)
 - **Performance regression:** `benchmarks/benchmark.py` (CSV output, strong/weak scaling, `--plot` flag)
 - **Roofline analysis:** `validation/cuda_roofline.py` (RTX 2050 hardcoded limits, optional ncu metric parsing)
