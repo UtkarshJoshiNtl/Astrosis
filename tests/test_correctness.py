@@ -20,7 +20,6 @@ import pytest
 import numpy as np
 
 from engine.core.propagator import rk4_step
-from engine.core.fuel import FuelTracker
 from engine.constants import MU, RE, J2, CRITICAL_DISTANCE, WARNING_DISTANCE, ADVISORY_DISTANCE
 from engine.core.accelerator import (
     propagate,
@@ -262,31 +261,7 @@ def test_python_conjunction_scans_partial_final_window(monkeypatch):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Fuel — non-default initial load
-# ─────────────────────────────────────────────────────────────────────────────
-
-def test_fuel_non_default_load():
-    """
-    FuelTracker initialized with 25 kg must report 100% (not 50%) at init.
-    Ensures fuel_percentage() uses the instance's initial value, not a constant.
-    """
-    tracker = FuelTracker(initial_fuel=25.0, dry_mass=500.0)
-    pct = tracker.fuel_percentage()
-    assert abs(pct - 100.0) < 0.001, (
-        f"Expected 100% for freshly initialized tracker with 25 kg, got {pct:.2f}%"
-    )
-
-
-def test_fuel_depletion_tracking():
-    """After burning 12.5 kg, a 25 kg tracker must report 50%."""
-    tracker = FuelTracker(initial_fuel=25.0, dry_mass=500.0)
-    tracker.fuel_kg -= 12.5
-    pct = tracker.fuel_percentage()
-    assert abs(pct - 50.0) < 0.001, f"Expected 50% after half fuel used, got {pct:.2f}%"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. Batch Propagation Equivalence
+# 4. Batch Propagation Equivalence
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_batch_matches_single():

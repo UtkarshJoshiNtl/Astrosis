@@ -48,5 +48,8 @@ coverage/
 .output/
 .vinxi/
 
+# Graphify output
+graphify-out/
+
 # Windows ADS zone identifiers
 *:Zone.Identifier
