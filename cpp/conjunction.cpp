@@ -2,15 +2,19 @@
  * cpp/conjunction.cpp — C++ Conjunction Detector
  * ===============================================
  * All-pairs screening with:
- *   - Incremental RK4 propagation (fixed in alpha branch)
- *   - Brent's method for sub-step TCA refinement
- *   - ADVISORY / WARNING / CRITICAL severity tiers
- *   - Chan's method Probability of Collision (Pc)
+ *   - Pre-propagation of all objects (batch, full history) — avoids per-pair
+ *     re-propagation during the coarse sweep (was O(ns*nd*steps) RK4 calls,
+ *     now O((ns+nd)*steps) + O(ns*nd*steps) distance-only checks).
+ *   - Broad-phase spatial culling based on initial pair separation.
+ *   - Brent's method for sub-step TCA refinement.
+ *   - ADVISORY / WARNING / CRITICAL severity tiers.
+ *   - Chan's method Probability of Collision (Pc).
  */
 #include "conjunction.h"
 #include "propagator.h"
 #include <cmath>
 #include <algorithm>
+#include <cstring>
 
 
 ConjunctionDetector::ConjunctionDetector() {}
@@ -78,10 +82,7 @@ static PcResult chan_pc(double miss_dist_km, double sigma_r_km,
     r.computed = false;
     if (sigma_r_km <= 0 || rel_speed_km_s <= 0) return r;
 
-    // Encounter duration ~ hard-body passage time
     double x = miss_dist_km / sigma_r_km;
-    // 2D Gaussian probability that relative position < HBR within the combined covariance
-    // Simplified: Pc ≈ (HBR²/(2σ²)) * exp(-x²/2)  for x >> 1
     double sigma2 = sigma_r_km * sigma_r_km;
     double hbr2 = hard_body_radius_km * hard_body_radius_km;
     double pc = (hbr2 / (2.0 * sigma2)) * std::exp(-0.5 * x * x);
@@ -100,100 +101,128 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
     std::vector<ConjunctionWarning> warnings;
     Propagator prop;
 
+    int ns = (int)sat_states.size();
+    int nd = (int)debris_states.size();
+    if (ns == 0 || nd == 0) return warnings;
+
+    // ── 1. Pre-propagate all objects (batch full history) ──────────────────
+    // Flat layout: (steps+1, n, 6) = n_frames × n_objects × 6 doubles.
+    // Offset for step t, object i, component k: t * (n * 6) + i * 6 + k.
+    int steps = (int)(lookahead_s / step_s);
+    int n_frames = steps + 1;
+
+    std::vector<double> init_sats(ns * 6);
+    std::vector<double> init_debs(nd * 6);
+    for (int i = 0; i < ns; ++i)
+        std::memcpy(&init_sats[i * 6], sat_states[i].raw(), 6 * sizeof(double));
+    for (int i = 0; i < nd; ++i)
+        std::memcpy(&init_debs[i * 6], debris_states[i].raw(), 6 * sizeof(double));
+
+    std::vector<double> sat_history(n_frames * ns * 6);
+    std::vector<double> deb_history(n_frames * nd * 6);
+
+    prop.batch_propagate_full_history(init_sats.data(), ns, step_s, steps,
+                                       0.0, 1.0, 2.2, 1.5, false, 0.0,
+                                       sat_history.data());
+    prop.batch_propagate_full_history(init_debs.data(), nd, step_s, steps,
+                                       0.0, 1.0, 2.2, 1.5, false, 0.0,
+                                       deb_history.data());
+
+    // ── 2. Broad-phase filter ──────────────────────────────────────────────
+    // Cull pairs whose initial separation exceeds the maximum possible
+    // relative displacement over the lookahead window.
+    double broad_radius = std::min(15.0 * lookahead_s, 2.0 * RE);
+
     // Position uncertainty grows ~ sqrt(TLE age). Empirical 1-sigma at 1 day: 0.3 km
     double sigma_pos = 0.3 * std::sqrt(std::max(tle_age_days, 0.1));
 
-    for (size_t i = 0; i < sat_states.size(); ++i) {
-        for (size_t j = 0; j < debris_states.size(); ++j) {
-            StateVector sat = sat_states[i];
-            StateVector deb = debris_states[j];
-            StateVector sat_prev = sat;
-            StateVector deb_prev = deb;
+    // Helper: reconstruct state at arbitrary time t from pre-propagated history.
+    // Uses the nearest pre-propagated frame + one RK4 step for the remainder.
+    auto state_at_t = [&](const std::vector<double>& history, int n_objects, int obj_idx, double t) -> StateVector {
+        int base_step = std::min((int)(t / step_s), steps);
+        double rem = t - base_step * step_s;
+        StateVector s;
+        std::memcpy(s.raw(), &history[base_step * (n_objects * 6) + obj_idx * 6], 6 * sizeof(double));
+        if (rem > 1e-9) {
+            s = prop.propagate(s, rem, 0.0);
+        }
+        return s;
+    };
 
+    // ── 3. Pairwise sweep + Brent refinement ───────────────────────────────
+    for (int i = 0; i < ns; ++i) {
+        // Broad-phase: sat i initial position
+        double sx0 = init_sats[i * 6 + 0];
+        double sy0 = init_sats[i * 6 + 1];
+        double sz0 = init_sats[i * 6 + 2];
+
+        for (int j = 0; j < nd; ++j) {
+            // Broad-phase: initial separation check
+            double dx0 = sx0 - init_debs[j * 6 + 0];
+            double dy0 = sy0 - init_debs[j * 6 + 1];
+            double dz0 = sz0 - init_debs[j * 6 + 2];
+            if (dx0*dx0 + dy0*dy0 + dz0*dz0 > broad_radius * broad_radius)
+                continue;
+
+            // ── Coarse sweep over pre-propagated history ───────────────────
             double min_distance = std::numeric_limits<double>::max();
             double tca_coarse   = 0.0;
-            StateVector sat_tca = sat;
-            StateVector deb_tca = deb;
-            StateVector sat_lo  = sat;
-            StateVector deb_lo  = deb;
+            int tca_step        = 0;
 
-            // ── Coarse sweep (incremental propagation) ────────────────────────
-            for (double t = 0.0; t <= lookahead_s; t += step_s) {
-                double dx = sat[0] - deb[0];
-                double dy = sat[1] - deb[1];
-                double dz = sat[2] - deb[2];
+            for (int step = 0; step < n_frames; ++step) {
+                double* s = &sat_history[step * (ns * 6) + i * 6];
+                double* d = &deb_history[step * (nd * 6) + j * 6];
+                double dx = s[0] - d[0], dy = s[1] - d[1], dz = s[2] - d[2];
                 double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
 
                 if (dist < min_distance) {
                     min_distance = dist;
-                    tca_coarse   = t;
-                    sat_tca      = sat;
-                    deb_tca      = deb;
-                    sat_lo       = sat_prev;
-                    deb_lo       = deb_prev;
+                    tca_coarse   = step * step_s;
+                    tca_step     = step;
                 }
-
-                sat_prev = sat;
-                deb_prev = deb;
-                sat = prop.propagate(sat, step_s);
-                deb = prop.propagate(deb, step_s);
             }
 
-            // Quick cull — only Brent-refine if under ADVISORY threshold
             if (min_distance >= ADVISORY_DISTANCE) continue;
 
-            // ── Brent refinement in [tca_coarse - step_s, tca_coarse + step_s] ──
-            // Use state at bracket-left (sat_lo/deb_lo) to avoid re-propagating
-            // the full trajectory from t=0 for each Brent evaluation.
-            double t_lo = tca_coarse - step_s;
-            if (t_lo < 0.0) {
-                t_lo = 0.0;
-                sat_lo = sat_states[i];
-                deb_lo = debris_states[j];
-            }
+            // ── Brent refinement ───────────────────────────────────────────
+            double t_lo = std::max(0.0, tca_coarse - step_s);
             double t_hi = std::min(lookahead_s, tca_coarse + step_s);
 
             auto distance_at_t = [&](double t) -> double {
-                double delta = t - t_lo;
-                auto s = prop.propagate_steps(sat_lo, delta, step_s);
-                auto d = prop.propagate_steps(deb_lo, delta, step_s);
+                auto s = state_at_t(sat_history, ns, i, t);
+                auto d = state_at_t(deb_history, nd, j, t);
                 double dx = s[0]-d[0], dy = s[1]-d[1], dz = s[2]-d[2];
                 return std::sqrt(dx*dx + dy*dy + dz*dz);
             };
 
             double tca_refined = brent_minimise(distance_at_t, t_lo, t_hi, 0.1);
-            auto s_tca = prop.propagate_steps(sat_lo, tca_refined - t_lo, step_s);
-            auto d_tca = prop.propagate_steps(deb_lo, tca_refined - t_lo, step_s);
+            auto s_tca = state_at_t(sat_history, ns, i, tca_refined);
+            auto d_tca = state_at_t(deb_history, nd, j, tca_refined);
 
             double dx_f = s_tca[0]-d_tca[0];
             double dy_f = s_tca[1]-d_tca[1];
             double dz_f = s_tca[2]-d_tca[2];
             double min_dist_refined = std::sqrt(dx_f*dx_f + dy_f*dy_f + dz_f*dz_f);
 
-            // Use the better of coarse and Brent estimates
             double final_dist = std::min(min_distance, min_dist_refined);
             double final_tca  = (min_dist_refined < min_distance) ? tca_refined : tca_coarse;
-            const auto& final_s = (min_dist_refined < min_distance) ? s_tca : sat_tca;
-            const auto& final_d = (min_dist_refined < min_distance) ? d_tca : deb_tca;
 
-            // ── Classify severity ─────────────────────────────────────────────
             Severity severity = Severity::NONE;
             if      (final_dist < CRITICAL_DISTANCE)  severity = Severity::CRITICAL;
             else if (final_dist < WARNING_DISTANCE)   severity = Severity::WARNING;
             else if (final_dist < ADVISORY_DISTANCE)  severity = Severity::ADVISORY;
             else continue;
 
-            // ── Relative velocity at TCA ──────────────────────────────────────
             std::array<double, 3> rel_v = {
-                final_s[3] - final_d[3],
-                final_s[4] - final_d[4],
-                final_s[5] - final_d[5]
+                s_tca[3] - d_tca[3],
+                s_tca[4] - d_tca[4],
+                s_tca[5] - d_tca[5]
             };
             double rel_speed = std::sqrt(rel_v[0]*rel_v[0] + rel_v[1]*rel_v[1] + rel_v[2]*rel_v[2]);
 
             ConjunctionWarning w;
-            w.sat_id                   = static_cast<int>(i);
-            w.debris_id                = static_cast<int>(j);
+            w.sat_id                   = i;
+            w.debris_id                = j;
             w.current_distance         = final_dist;
             w.time_to_closest_approach = final_tca;
             w.severity                 = severity;
