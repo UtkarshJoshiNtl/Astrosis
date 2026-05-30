@@ -1,28 +1,12 @@
 # Astrosis — orbital mechanics calculator
 
-Astrosis is a command-line orbital mechanics calculator — J2/J3/J4 propagation,
-conjunction screening, and pass prediction — with an auto-selecting CUDA/C++/Python backend.
+CLI + TUI orbital mechanics calculator — J2/J3/J4 propagation, conjunction screening,
+pass prediction, and ephemeris. Auto-selects CUDA → C++/OpenMP → NumPy → Python backend.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![CI](https://github.com/UtkarshJoshiNtl/Astrosis/actions/workflows/ci.yml/badge.svg)](https://github.com/UtkarshJoshiNtl/Astrosis/actions/workflows/ci.yml)
 
 ```console
-$ astrosis info --id 25544
-╭───────────────────────────── Satellite Identity ─────────────────────────────╮
-│ Name: ISS (ZARYA)                                                            │
-│ NORAD ID: 25544                                                              │
-│ TLE Epoch: 2026-05-29 11:39:12 UTC                                           │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭────────────────────────────── Orbital Elements ──────────────────────────────╮
-│   Parameter                      Value                                       │
-│   Inclination                 51.6334°                                       │
-│   Eccentricity                0.000732                                       │
-│   Period             92.94 min (5576 s)                                      │
-│   Perigee Alt.              413.3 km                                         │
-│   Apogee Alt.               423.3 km                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-
 $ astrosis passes --city "New York" --id 25544
 Found 6 passes for ISS (ZARYA) over New York in the next 24.0h
 ┌──────────┬────────────────┬──────────┬──────────┬─────────┐
@@ -30,82 +14,94 @@ Found 6 passes for ISS (ZARYA) over New York in the next 24.0h
 ├──────────┼────────────────┼──────────┼──────────┼─────────┤
 │ 14:52:30 │         54.3°  │  142.5°  │  6m 43s  │   Yes   │
 │ 16:28:45 │         21.7°  │  226.8°  │  4m 12s  │   No    │
-│ ...      │           ...  │     ...  │     ...  │   ...   │
 └──────────┴────────────────┴──────────┴──────────┴─────────┘
-
-$ astrosis backend
-╭─────────────────────────────── Backend Status ───────────────────────────────╮
-│ Active backend: CUDA                                                         │
-│   ✓ CUDA                                                                     │
-│   ✓ C++ / OpenMP                                                             │
-│   ✓ NumPy batch                                                              │
-│   ✓ Python fallback                                                          │
-│                                                                              │
-│ CUDA GPU (NVIDIA)                                                            │
-│ GPU: NVIDIA GPU                                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## Install
+## Quick start
 
 ```bash
 pip install astrosis
-astrosis passes --city "Mumbai" --id 25544
+
+# TUI (no args)
+astrosis
+
+# CLI (with subcommand)
+astrosis passes --city Mumbai --id 25544
+astrosis info --id 25544
 ```
 
-## What it does
+Running `astrosis` with no arguments launches the interactive TUI.
+All existing CLI subcommands remain unchanged.
+
+## TUI
+
+```
+┌─ ASTROSIS ──────────────── CUDA · RTX 2050 ─── 2026-05-30 13:42 UTC ─────┐
+│                                                                              │
+│  NORAD ID    TIME          EL      AZ     DUR    VIS                        │
+│  ─────────   ─────────────────────────────────────────                      │
+│  > 25544     14:12:33   72.4°   312°    6m41s  ●                            │
+│              15:48:10   34.1°   248°    4m12s  ●                            │
+│  CITY        17:24:55   12.3°   195°    2m08s  ○                            │
+│  > Mumbai                                                                   │
+│                                                                              │
+│  HOURS      tab·switch  ↑↓·select  e·export  r·refresh  q·quit             │
+│  > 24                                                                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Three modes (switch with Tab):
+
+| Mode | What it does |
+|------|--------------|
+| **passes** | Predict satellite passes for a city or lat/lon |
+| **propagate** | Propagate a NORAD ID or state vector forward |
+| **conjunction** | Load CSVs and screen pairs for close approaches |
+
+Keys: `Tab` switch mode, `↑↓` select row, `Enter`/Run button execute, `e` export JSON,
+`r` clear results, `q` quit.
+
+## CLI reference
 
 | Command | What it does |
 |---------|--------------|
-| `passes` | Predict satellite passes for any city or lat/lon |
-| `propagate` | Propagate an ECI state or NORAD ID forward in time |
-| `conjunction` | Screen satellite vs debris pairs for close approaches |
-| `batch` | Propagate thousands of satellites from a CSV |
+| `astrosis` | Launch interactive TUI |
+| `astrosis passes --city <name> --id <norad>` | Predict satellite passes |
+| `astrosis info --id <norad>` | Orbital elements and current state |
+| `astrosis propagate <state or id> --dt 60 --steps 1440` | Propagate forward |
+| `astrosis conjunction --primary a.csv --secondary b.csv` | Conjunction screening |
+| `astrosis batch <file.csv> --steps 100` | Batch propagate from CSV |
+| `astrosis backend` | Show active compute backend |
+| `astrosis fetch --id <norad>` | Fetch and cache TLE data |
+| `astrosis ephemeris --mjd 60000` | Sun/moon positions |
 
-## Performance
+## Install from source
 
-| Workload | Python | C++ | CUDA |
-|----------|--------|-----|------|
-| 1 sat, 50k steps | 395 ms | 22 ms (18×) | — |
-| 1k sats, 24h @ dt=10s | 7,034 ms | 14 ms (507×) | 47 ms (150×) |
-| 400×400 conjunction | 46.7 s | 5.2 s (9×) | 564 ms (83×) |
+```bash
+git clone https://github.com/UtkarshJoshiNtl/Astrosis.git
+cd Astrosis
+pip install -r requirements.txt
+pip install -e .
+```
 
-**Hardware:** RTX 2050 (16 SMs), AMD Ryzen 5, CUDA 12.9. Full methodology: [docs/performance.md](docs/performance.md)
+Optional: build C++/CUDA backends for faster computation:
+```bash
+./build-backends.sh   # auto-detects CUDA
+python main.py backend  # verify
+```
 
-## Backend
+## Backend auto-selection
 
-Astrosis automatically selects the fastest available backend for each operation.
-CUDA GPU is preferred for large batch work (>1000 satellites), falling back to
-C++/OpenMP for smaller sets or environments without a GPU. Further fallbacks
-use NumPy vectorised propagation or a pure Python RK4 loop with no compiled
-dependencies.
+Astrosis automatically picks the fastest backend for each operation:
+CUDA GPU → C++/OpenMP → NumPy batch → pure Python.
 
-```console
+```bash
 $ astrosis backend
 ╭─────────────────────────────── Backend Status ───────────────────────────────╮
 │ Active backend: CUDA                                                         │
-│   ✓ CUDA                                                                     │
-│   ✓ C++ / OpenMP                                                             │
-│   ✓ NumPy batch                                                              │
-│   ✓ Python fallback                                                          │
+│   ✓ CUDA  ✓ C++/OpenMP  ✓ NumPy batch  ✓ Python fallback                    │
+│ GPU: NVIDIA GPU                                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## Library usage
-
-```python
-from engine import propagate, propagate_batch, ConjunctionDetector
-
-# Propagate a single state (6-element ECI: x, y, z, vx, vy, vz)
-state = [RE + 400, 0, 0, 0, 7.66, 0]
-new_state = propagate(state, dt_seconds=60.0)
-
-# Batch propagate many satellites
-states = propagate_batch([state, state2], dt_seconds=60, steps=100)
-
-# Screen pairs for conjunction warnings
-warnings = ConjunctionDetector().detect(sat_states=[...], debris_states=[...],
-                                        lookahead_s=3600, step_s=60)
 ```
 
 ## Docs
