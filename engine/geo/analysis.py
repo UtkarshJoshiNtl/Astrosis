@@ -103,11 +103,11 @@ def report_passes(
                     "visible": visible,
                     "points": [],
                 }
-            if el_deg > current_pass["max_elevation"]:
+            if el_deg > current_pass["max_elevation"]:  # type: ignore[operator]
                 current_pass["max_elevation"] = el_deg
             if visible:
                 current_pass["visible"] = True
-            current_pass["points"].append(
+            current_pass["points"].append(  # type: ignore[attr-defined]
                 {
                     "time": time_sim.isoformat(),
                     "az_deg": float(np.degrees(az)),

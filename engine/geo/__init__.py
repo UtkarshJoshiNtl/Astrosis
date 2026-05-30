@@ -1,6 +1,7 @@
 from __future__ import annotations
 from importlib import import_module
 
+from .cities import CITIES, resolve_location
 from .frames import (
     gmst_from_datetime,
     eci_to_ecef,
@@ -18,6 +19,8 @@ from .visibility import (
 )
 
 __all__ = [
+    "CITIES",
+    "resolve_location",
     "gmst_from_datetime",
     "eci_to_ecef",
     "ecef_to_geodetic",

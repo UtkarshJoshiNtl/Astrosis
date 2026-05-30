@@ -1,6 +1,6 @@
 name: CI
 
-on:
+"on":
   push:
     branches: [main, develop]
   pull_request:
@@ -56,12 +56,12 @@ jobs:
         run: |
           pytest tests/test_correctness.py -v --no-header -k "batch or backend" || echo "C++ tests: some skipped (expected without CUDA)"
           python -c "
-import sys, os
-sys.path.insert(0, 'cpp/build')
-import physics_engine as pe
-p = pe.Propagator()
-import numpy as np
-s = np.array([[7000.0, 0.0, 0.0, 0.0, 7.5, 0.0]], dtype=np.float64)
-r = pe.Propagator().batch_propagate_steps(s, 10.0, 10)
-print(f'C++ batch OK: final pos r={r[0][0]:.1f} km')
-"
+          import sys, os
+          sys.path.insert(0, 'cpp/build')
+          import physics_engine as pe
+          p = pe.Propagator()
+          import numpy as np
+          s = np.array([[7000.0, 0.0, 0.0, 0.0, 7.5, 0.0]], dtype=np.float64)
+          r = pe.Propagator().batch_propagate_steps(s, 10.0, 10)
+          print(f'C++ batch OK: final pos r={r[0][0]:.1f} km')
+          "

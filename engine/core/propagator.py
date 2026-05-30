@@ -175,6 +175,7 @@ def rk4_step(
     Returns:
         Propagated state tuple of 6 floats.
     """
+
     def accel(r, v, local_mjd):
         x, y, z = r[0], r[1], r[2]
         r_mag = math.sqrt(x * x + y * y + z * z)
