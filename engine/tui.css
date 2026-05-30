@@ -1,0 +1,103 @@
+Screen {
+    background: #0d0d0d;
+}
+
+#app-header {
+    height: 1;
+    background: #111111;
+    color: #666666;
+}
+
+#input-panel {
+    width: 22;
+    border: solid #222222;
+    padding: 1 2;
+}
+
+.prop-input, .conj-input {
+    display: none;
+}
+
+Input {
+    background: #111111;
+    border: solid #333333;
+    color: #e6edf3;
+    margin-bottom: 1;
+}
+
+Input:focus {
+    border: solid #58a6ff;
+}
+
+Input.input-error {
+    border: solid #ff4444;
+}
+
+Button {
+    background: #111111;
+    border: solid #3fb950;
+    color: #3fb950;
+    width: 100%;
+}
+
+Button:hover {
+    background: #0d1a0d;
+}
+
+DataTable {
+    background: #0d0d0d;
+}
+
+DataTable > .datatable--header {
+    background: #111111;
+    color: #444444;
+}
+
+DataTable > .datatable--cursor {
+    background: #1a2a3a;
+    color: #e6edf3;
+}
+
+Footer {
+    height: 1;
+    background: #111111;
+    color: #444444;
+}
+
+ListView {
+    background: #0d0d0d;
+    border: none;
+    padding: 0;
+}
+
+ListItem {
+    color: #555555;
+    padding: 0 1;
+}
+
+ListItem.--highlight {
+    background: #111111;
+    color: #e6edf3;
+}
+
+#detail-strip {
+    height: 3;
+    border-top: solid #222222;
+    padding: 0 2;
+    color: #888888;
+}
+
+#mode-label {
+    color: #555555;
+    margin-bottom: 1;
+}
+
+#propagate-result {
+    background: #0d0d0d;
+    color: #e6edf3;
+    padding: 1 2;
+}
+
+.hidden {
+    display: none;
+}

@@ -704,6 +704,16 @@ _DISPATCH = {
 
 
 def main():
+    if len(sys.argv) == 1 or (
+        len(sys.argv) == 2 and sys.argv[1] == "--mock-gpu"
+    ):
+        if "--mock-gpu" in sys.argv:
+            os.environ["ASTROSIS_MOCK_GPU"] = "1"
+        from engine.tui import AstrosisApp
+
+        AstrosisApp().run()
+        return
+
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
     parser = argparse.ArgumentParser(
