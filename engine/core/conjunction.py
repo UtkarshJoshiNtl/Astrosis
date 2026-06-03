@@ -38,6 +38,7 @@ class ConjunctionWarning:
 
     @property
     def pc(self) -> float:
+        """Collision probability (convenience accessor for pc_result.pc)."""
         return self.pc_result.pc
 
 
@@ -147,7 +148,7 @@ class ConjunctionDetector:
 
         Algorithm:
         1. Broad-phase filtering via KDTree (or O(n²) fallback without SciPy).
-        2. Pre-propagate full trajectory for all objects via propagate_batch_full_history.
+        2. Pre-propagate full trajectory for all objects.
         3. Coarse temporal sweep: find minimum-approach distance per candidate pair.
         4. Brent refinement of TCA within [tca-step_s, tca+step_s].
         5. Chan collision probability for pairs exceeding ADVISORY threshold.
@@ -280,9 +281,23 @@ class ConjunctionDetector:
                 final_s = tuple(all_sats[n_final][sat_idx])
                 final_d = tuple(all_debs[n_final][deb_idx])
                 if t_final_rem > 1e-9:
-                    final_s = rk4_step(final_s, t_final_rem, mjd0=mjd0, elapsed_seconds=n_final * step_s)
-                    final_d = rk4_step(final_d, t_final_rem, mjd0=mjd0, elapsed_seconds=n_final * step_s)
-                rel_v_at_tca = [final_s[3] - final_d[3], final_s[4] - final_d[4], final_s[5] - final_d[5]]
+                    final_s = rk4_step(
+                        final_s,
+                        t_final_rem,
+                        mjd0=mjd0,
+                        elapsed_seconds=n_final * step_s,
+                    )
+                    final_d = rk4_step(
+                        final_d,
+                        t_final_rem,
+                        mjd0=mjd0,
+                        elapsed_seconds=n_final * step_s,
+                    )
+                rel_v_at_tca = [
+                    final_s[3] - final_d[3],
+                    final_s[4] - final_d[4],
+                    final_s[5] - final_d[5],
+                ]
                 rel_speed = math.sqrt(sum(v * v for v in rel_v_at_tca))
                 pc = _chan_pc(final_dist, sigma_pos, rel_speed)
 

@@ -44,6 +44,11 @@ else:
 
 
 def backend_info() -> dict:
+    """Return backend availability and active backend description.
+
+    Returns:
+        dict with keys active, cuda, cpp, numpy_batch, python, description.
+    """
     cuda = _HAS_CUDA
     cpp = _HAS_CPP
     active = "python"
@@ -138,6 +143,24 @@ def propagate_steps(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> list:
+    """Propagate a single state over a time interval with sub-stepping.
+
+    Uses C++ backend if available, falls back to pure Python RK4 loop.
+
+    Args:
+        state: ECI state [x, y, z, vx, vy, vz] in km and km/s.
+        total_seconds: Total propagation time in seconds.
+        step_size: Sub-step size in seconds.
+        area: Cross-sectional area in m² (0 to skip drag).
+        mass: Spacecraft mass in kg.
+        cd: Drag coefficient.
+        cr: Reflectivity coefficient.
+        with_drag: Enable drag and SRP.
+        mjd0: Modified Julian Date (0 = no lunisolar).
+
+    Returns:
+        Final propagated state list of 6 floats.
+    """
     if _HAS_CPP:
         try:
             return list(
@@ -156,7 +179,14 @@ def propagate_steps(
     while rem > 0:
         dt = min(step_size, rem)
         curr = rk4_step(
-            curr, dt, mjd0, steps_taken, area if with_drag else 0.0, mass, cd, cr,
+            curr,
+            dt,
+            mjd0,
+            steps_taken,
+            area if with_drag else 0.0,
+            mass,
+            cd,
+            cr,
             elapsed_seconds=elapsed,
         )
         rem -= dt
@@ -240,6 +270,26 @@ def propagate_batch_full_history(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> np.ndarray:
+    """Propagate multiple states and return full trajectory history.
+
+    Returns all intermediate states for each object (steps+1 frames).
+    CUDA path returns SoA-layout array; C++ and Python paths return
+    AoS-layout array (shape [steps+1, n, 6]).
+
+    Args:
+        states: List of ECI state vectors.
+        dt_seconds: Time step in seconds.
+        steps: Number of integration steps.
+        area: Cross-sectional area in m².
+        mass: Spacecraft mass in kg.
+        cd: Drag coefficient.
+        cr: Reflectivity coefficient.
+        with_drag: Enable drag and SRP.
+        mjd0: Modified Julian Date.
+
+    Returns:
+        ndarray of shape (steps+1, n, 6).
+    """
     arr = np.array(states, dtype=np.float64)
 
     if _HAS_CUDA:

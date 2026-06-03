@@ -81,6 +81,18 @@ _ATMO_TABLE = [
 
 
 def get_atmospheric_density(altitude_km):
+    """Exponential atmospheric density model (piecewise isothermal).
+
+    Uses a pre-computed table of scale heights and base densities
+    from the US Standard Atmosphere (1976) reference, covering
+    0–1000 km altitude.
+
+    Args:
+        altitude_km: Altitude above Earth surface in km (scalar or array).
+
+    Returns:
+        Atmospheric density in kg/m³ (same shape as input).
+    """
     if np.ndim(altitude_km) == 0:
         alt = float(altitude_km)
         if alt < 0:
@@ -96,7 +108,9 @@ def get_atmospheric_density(altitude_km):
     h_bases = np.array([h for h, _, _ in _ATMO_TABLE])
     H_vals = np.array([H for _, H, _ in _ATMO_TABLE])
     rho0_vals = np.array([rho for _, _, rho in _ATMO_TABLE])
-    idx = np.clip(np.searchsorted(h_bases, alt, side="right") - 1, 0, len(_ATMO_TABLE) - 1)
+    idx = np.clip(
+        np.searchsorted(h_bases, alt, side="right") - 1, 0, len(_ATMO_TABLE) - 1
+    )
     return rho0_vals[idx] * np.exp(-(alt - h_bases[idx]) / H_vals[idx])
 
 
@@ -233,7 +247,9 @@ def rk4_step(
         mjd_start = mjd0 + elapsed / 86400.0
         mjd_mid = mjd_start + (dt / 2.0) / 86400.0
         mjd_end = mjd_start + dt / 86400.0
-        r_sun_start, r_moon_start = sun_position_eci(mjd_start), moon_position_eci(mjd_start)
+        r_sun_start, r_moon_start = sun_position_eci(mjd_start), moon_position_eci(
+            mjd_start
+        )
         r_sun_mid, r_moon_mid = sun_position_eci(mjd_mid), moon_position_eci(mjd_mid)
         r_sun_end, r_moon_end = sun_position_eci(mjd_end), moon_position_eci(mjd_end)
     else:
@@ -381,6 +397,25 @@ def rk4_batch(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> np.ndarray:
+    """Batch RK4 integration over multiple states (NumPy vectorised).
+
+    Applies J2–J4, lunisolar, SRP, and atmospheric drag to all states
+    simultaneously using vectorised NumPy operations.
+
+    Args:
+        state_arr: ndarray of shape (n, 6) — ECI states in km and km/s.
+        dt_seconds: Time step in seconds.
+        steps: Number of integration steps.
+        area: Cross-sectional area in m².
+        mass: Spacecraft mass in kg.
+        cd: Drag coefficient.
+        cr: Reflectivity coefficient.
+        with_drag: Enable drag and SRP.
+        mjd0: Modified Julian Date.
+
+    Returns:
+        Propagated states, ndarray of shape (n, 6).
+    """
     R = state_arr[:, :3].copy()
     V = state_arr[:, 3:].copy()
 
@@ -479,6 +514,24 @@ def propagate_batch_numpy(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> list:
+    """Propagate multiple states via NumPy RK4, returning only the final state.
+
+    Thin wrapper around rk4_batch that accepts and returns lists.
+
+    Args:
+        states: List of ECI state vectors.
+        dt_seconds: Time step in seconds.
+        steps: Number of integration steps.
+        area: Cross-sectional area in m².
+        mass: Spacecraft mass in kg.
+        cd: Drag coefficient.
+        cr: Reflectivity coefficient.
+        with_drag: Enable drag and SRP.
+        mjd0: Modified Julian Date.
+
+    Returns:
+        List of propagated state vectors.
+    """
     arr = np.array(states, dtype=np.float64)
     arr = rk4_batch(arr, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0)
     return arr.tolist()

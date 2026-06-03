@@ -35,31 +35,33 @@ All existing CLI subcommands remain unchanged.
 
 ## TUI
 
-```
-┌─ ASTROSIS ──────────────── CUDA · RTX 2050 ─── 2026-05-30 13:42 UTC ─────┐
-│                                                                              │
-│  NORAD ID    TIME          EL      AZ     DUR    VIS                        │
-│  ─────────   ─────────────────────────────────────────                      │
-│  > 25544     14:12:33   72.4°   312°    6m41s  ●                            │
-│              15:48:10   34.1°   248°    4m12s  ●                            │
-│  CITY        17:24:55   12.3°   195°    2m08s  ○                            │
-│  > Mumbai                                                                   │
-│                                                                              │
-│  HOURS      tab·switch  ↑↓·select  e·export  r·refresh  q·quit             │
-│  > 24                                                                       │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-Three modes (switch with Tab):
+Six modes (switch with `Alt+1`–`Alt+6`):
 
 | Mode | What it does |
 |------|--------------|
 | **passes** | Predict satellite passes for a city or lat/lon |
 | **propagate** | Propagate a NORAD ID or state vector forward |
 | **conjunction** | Load CSVs and screen pairs for close approaches |
+| **info** | Orbital elements, current ECI state, ground track |
+| **ephemeris** | Sun/Moon ECI positions and distances |
+| **backend** | Active compute backend and GPU info |
 
-Keys: `Tab` switch mode, `↑↓` select row, `Enter`/Run button execute, `e` export JSON,
-`r` clear results, `q` quit.
+Keybindings:
+
+| Key | Action |
+|-----|--------|
+| `Alt+1`–`Alt+6` | Switch mode |
+| `Enter` | Run current mode |
+| `Escape` | Cancel running operation |
+| `Ctrl+E` | Export results to JSON |
+| `F5` | Refresh / clear results |
+| `F1` / `?` | Show help overlay |
+| `↑↓` | Select result row (detail strip) |
+| `Ctrl+Q` | Quit |
+
+Drag/SRP parameters and conjunction advanced options are hidden behind
+clickable `[+]` section headers. Input values persist across sessions
+via `~/.cache/astrosis/tui_state.json`.
 
 ## CLI reference
 
@@ -104,6 +106,20 @@ $ astrosis backend
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## Performance
+
+| Operation | Python | C++ | CUDA |
+|-----------|-------:|----:|-----:|
+| Single sat (50k steps) | 391 ms | **21 ms (19×)** | N/A |
+| Batch 1k sats × 864 steps | 7074 ms | **13 ms (566×)** | **245 ms (29×)** |
+| Batch 5k sats × 864 steps | 36854 ms | **55 ms (676×)** | **291 ms (127×)** |
+| Conjunction 200×200 1h | 6262 ms | 498 ms (13×) | **45 ms (139×)** |
+| Conjunction 400×400 2h | 26677 ms | 3856 ms (7×) | **125 ms (214×)** |
+
+C++ dominates < 500 satellites (no PCIe overhead). CUDA dominates > 500 with
+up to 66,483 sats/s throughput. See [docs/performance.md](docs/performance.md)
+for full crossover analysis, extended modes, and roofline.
+
 ## Docs
 
 | Resource | Purpose |
@@ -111,7 +127,7 @@ $ astrosis backend
 | [docs/architecture.md](docs/architecture.md) | System design, backends, data flow |
 | [docs/design.md](docs/design.md) | Design tradeoffs and rationale |
 | [docs/performance.md](docs/performance.md) | Benchmarks, scaling, roofline analysis |
-| [docs/profiling.md](docs/profiling.md) | CUDA profiling guide |
+| [docs/api.md](docs/api.md) | Public Python API reference |
 | [docs/validation.md](docs/validation.md) | Physics verification methodology |
 
 ## License
