@@ -24,7 +24,8 @@ def report_passes(
     sat_area: float = 10.0,
     sat_mass: float = 1000.0,
     sat_cd: float = 2.2,
-    ingestor=None,  # dependency injection — pass a TLEIngestor or mock; defaults to global singleton
+    min_elevation_deg: float = 10.0,
+    ingestor=None,
 ):
     """
     Predict satellite passes for a ground station.
@@ -39,6 +40,7 @@ def report_passes(
         sat_area:  Satellite cross-sectional area in m² (drag, default 10 m²).
         sat_mass:  Satellite total mass in kg (drag, default 1000 kg).
         sat_cd:    Drag coefficient (default 2.2).
+        min_elevation_deg: Minimum elevation angle in degrees to report (default 10).
         ingestor:  TLEIngestor instance (or mock). Defaults to module-level singleton.
     """
     if ingestor is None:
@@ -93,9 +95,11 @@ def report_passes(
         az, el, rng = topocentric_aer(r_ecef, lat_rad, lon_rad, alt)
 
         el_deg = float(np.degrees(el))
-        visible = is_optically_visible(el, r_eci, time_sim, min_elevation_deg=10.0)
+        visible = is_optically_visible(
+            el, r_eci, time_sim, min_elevation_deg=min_elevation_deg
+        )
 
-        if el_deg >= 10.0:
+        if el_deg >= min_elevation_deg:
             if current_pass is None:
                 current_pass = {
                     "start_time": time_sim.isoformat(),

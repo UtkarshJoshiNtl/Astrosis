@@ -7,9 +7,10 @@ from __future__ import annotations
 import csv
 import json
 import math
+from pathlib import Path
 from datetime import datetime, timezone
 
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, Screen
 from textual.containers import Horizontal, Vertical
 from textual.suggester import SuggestFromList
 from textual.widgets import (
@@ -29,6 +30,8 @@ from engine.core.accelerator import backend_info, propagate_steps, detect_conjun
 from engine.core.ephemeris import sun_position_eci, moon_position_eci
 from engine.geo.cities import CITIES, resolve_location
 from engine.constants import RE
+
+_STATE_FILE = Path.home() / ".cache" / "astrosis" / "tui_state.json"
 
 # ── Safe helpers ─────────────────────────────────────────────────────────────
 
@@ -150,6 +153,38 @@ def _format_time(dt: datetime) -> str:
     return dt.strftime("%m-%d %H:%M:%S")
 
 
+# ── Help overlay ──────────────────────────────────────────────────────────────
+
+
+class HelpScreen(Screen[None]):
+    BINDINGS = [("escape", "dismiss", "Close")]
+
+    def compose(self) -> ComposeResult:
+        yield Static(
+            "[bold]Astrosis — Keyboard & Mode Reference[/bold]\n\n"
+            "[bold]Modes[/bold]\n"
+            "  Passes       Find satellite visibility passes over a city\n"
+            "  Propagate    Propagate a state vector forward in time\n"
+            "  Conjunction  Screen CSV debris catalogs for close approaches\n"
+            "  Info         Display orbital elements + TLE info from NORAD ID\n"
+            "  Ephemeris    Compute Sun/Moon ECI position at given MJD\n"
+            "  Backend      Show active compute backend + available backends\n\n"
+            "[bold]Keybindings[/bold]\n"
+            "  Ctrl+Q       Quit the application\n"
+            "  Ctrl+E       Export results to JSON file\n"
+            "  F5           Refresh / clear current results\n"
+            "  F1 / ?       Show this help screen\n"
+            "  Escape       Cancel running operation / close help\n"
+            "  Alt+1-6      Switch between modes\n\n"
+            "[bold]Input[/bold]\n"
+            "  City names autocomplete from ~85 predefined cities\n"
+            "  Coordinate format: 'lat, lon' for custom locations\n"
+            "  Default values shown in [brackets] in placeholders\n"
+            "  Click [-] section headers to expand/collapse advanced params",
+            classes="help-text",
+        )
+
+
 # ── App ─────────────────────────────────────────────────────────────────────
 
 
@@ -160,6 +195,8 @@ class AstrosisApp(App[None]):
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+e", "export", "Export"),
         Binding("f5", "refresh", "Refresh"),
+        Binding("f1", "show_help", "Help", show=True),
+        Binding("slash", "show_help", "Help", show=False),
         Binding("escape", "cancel_operation", "Cancel", show=False),
         Binding("alt+1", "show_passes", "Passes", show=False),
         Binding("alt+2", "show_propagate", "Propagate", show=False),
@@ -208,6 +245,11 @@ class AstrosisApp(App[None]):
                             id="passes-hours",
                             placeholder="Hours  [24]",
                             value="24",
+                        )
+                        yield Input(
+                            id="passes-min-el",
+                            placeholder="Min elev (°)  [10]",
+                            value="10",
                         )
                         yield Static("── Drag ──", classes="section-label")
                         yield Input(
@@ -336,6 +378,7 @@ class AstrosisApp(App[None]):
         self.set_interval(0.25, self._update_clock)
         self._update_clock()
         self._update_button_for_mode("passes")
+        self._load_state()
         self._set_status("[dim]Ready — pick a mode and press Run[/dim]")
 
     _spinner_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -422,10 +465,17 @@ class AstrosisApp(App[None]):
     def action_show_backend(self) -> None:
         self._switch_tab("backend")
 
+    def action_quit(self) -> None:
+        self._save_state()
+        return super().action_quit()
+
     def action_cancel_operation(self) -> None:
         if self._worker_running and self._current_worker is not None:
             self._current_worker.cancel()
             self._set_status("[dim]Cancelled[/dim]")
+
+    def action_show_help(self) -> None:
+        self.push_screen(HelpScreen())
 
     def _toggle_advanced(self, section_id: str) -> None:
         section = self.query_one(f"#{section_id}")
@@ -509,6 +559,46 @@ class AstrosisApp(App[None]):
             btn.disabled = False
             self._update_button_for_mode(self._active_tab)
 
+    # ── Persistence ─────────────────────────────────────────────────────────
+
+    def _input_widgets(self) -> list[Input]:
+        ids = [
+            "passes-norad", "passes-city", "passes-hours", "passes-min-el",
+            "passes-area", "passes-mass", "passes-cd",
+            "prop-norad", "prop-state", "prop-dt", "prop-steps",
+            "prop-area", "prop-mass", "prop-cd", "prop-cr", "prop-mjd0",
+            "conj-primary", "conj-secondary", "conj-lookahead",
+            "conj-step", "conj-mjd0",
+            "info-norad",
+            "eph-mjd",
+        ]
+        result = []
+        for wid in ids:
+            try:
+                result.append(self.query_one(f"#{wid}", Input))
+            except Exception:
+                pass
+        return result
+
+    def _save_state(self) -> None:
+        state = {w.id: w.value for w in self._input_widgets()}
+        try:
+            _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            _STATE_FILE.write_text(json.dumps(state, indent=2))
+        except Exception:
+            pass
+
+    def _load_state(self) -> None:
+        if not _STATE_FILE.exists():
+            return
+        try:
+            state = json.loads(_STATE_FILE.read_text())
+            for wid in self._input_widgets():
+                if wid.id in state and state[wid.id]:
+                    wid.value = state[wid.id]
+        except Exception:
+            pass
+
     # ── Input validation ─────────────────────────────────────────────────────
 
     def _flash_input(self, input_widget: Input) -> None:
@@ -537,6 +627,9 @@ class AstrosisApp(App[None]):
         cd = self.query_one("#passes-cd", Input)
         if not cd.value.strip():
             cd.value = "2.2"
+        min_el = self.query_one("#passes-min-el", Input)
+        if not min_el.value.strip():
+            min_el.value = "10"
         return ok
 
     def _validate_propagate(self) -> bool:
@@ -631,6 +724,7 @@ class AstrosisApp(App[None]):
         norad_str = self.query_one("#passes-norad", Input).value.strip()
         city_str = self.query_one("#passes-city", Input).value.strip()
         hours_str = self.query_one("#passes-hours", Input).value.strip()
+        min_el_str = self.query_one("#passes-min-el", Input).value.strip()
         area_str = self.query_one("#passes-area", Input).value.strip()
         mass_str = self.query_one("#passes-mass", Input).value.strip()
         cd_str = self.query_one("#passes-cd", Input).value.strip()
@@ -642,8 +736,9 @@ class AstrosisApp(App[None]):
             return
         try:
             hours = float(hours_str)
+            min_el = float(min_el_str) if min_el_str else 10.0
         except ValueError:
-            self._show_error(f"Invalid hours: {hours_str}")
+            self._show_error("Invalid hours or min elevation")
             return
         try:
             area = float(area_str)
@@ -682,11 +777,12 @@ class AstrosisApp(App[None]):
             "norad_id": norad_id,
             "city": display_city,
             "hours": hours,
+            "min_el": min_el,
         }
         self._set_worker_running(True)
         self._show_loading("Fetching TLE and propagating...")
         self._current_worker = self.run_passes_worker(
-            norad_id, lat, lon, 0.0, hours, area, mass, cd
+            norad_id, lat, lon, 0.0, hours, area, mass, cd, min_el
         )
 
     @work(thread=True, exclusive=True)
@@ -700,6 +796,7 @@ class AstrosisApp(App[None]):
         area: float,
         mass: float,
         cd: float,
+        min_el: float = 10.0,
     ) -> None:
         from engine.geo.analysis import report_passes
 
@@ -714,6 +811,7 @@ class AstrosisApp(App[None]):
             sat_area=area,
             sat_mass=mass,
             sat_cd=cd,
+            min_elevation_deg=min_el,
         )
         self.call_from_thread(self._show_passes_result, result)
 
