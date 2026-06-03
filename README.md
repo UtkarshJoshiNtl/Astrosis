@@ -4,12 +4,8 @@ CLI + TUI orbital mechanics calculator — J2/J3/J4 propagation, conjunction scr
 pass prediction, and ephemeris. Auto-selects CUDA → C++/OpenMP → NumPy → Python backend.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/UtkarshJoshiNtl/Astrosis/ci.yml?branch=main&label=CI&logo=github)](https://github.com/UtkarshJoshiNtl/Astrosis/actions)
-[![PyPI version](https://img.shields.io/pypi/v/astrosis?logo=pypi&logoColor=white)](https://pypi.org/project/astrosis/)
-[![Python 3.10+](https://img.shields.io/pypi/pyversions/astrosis?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![License MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Code style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Platform](https://img.shields.io/badge/platform-linux%20|%20macOS%20|%20windows-lightgrey)](https://pypi.org/project/astrosis/)
-[![Downloads](https://img.shields.io/pypi/dm/astrosis?logo=PyPI&logoColor=white)](https://pypi.org/project/astrosis/)
 
 ![TUI demo](assets/tui-demo.gif)
 
@@ -53,13 +49,13 @@ astrosis info --id 25544
 
 | Category | Capabilities |
 |----------|-------------|
-| 🛰️ **Propagation** | RK4 with J2/J3/J4, atmospheric drag (US Standard 1976), SRP, lunisolar third-body |
-| ⚡ **Auto-backend** | CUDA GPU → C++ OpenMP → NumPy batch → Python fallback, transparent fallback |
-| 🚨 **Conjunction** | KDTree broad-phase, pairwise distance scan, Brent TCA refinement, Chan collision probability |
-| 🛸 **Pass prediction** | SGP4 → RK4 seamless handoff, elevation/visibility filtering, ~85 cities built-in |
-| ☀️ **Ephemeris** | Sun/Moon ECI positions via VSOP87/ELP-2000, eclipse state (umbra/penumbra) |
-| ⌨️ **TUI** | 6 modes, help overlay, collapsible advanced sections, JSON export, persistence, autocomplete cities |
-| 🧮 **Coordinate frames** | ECI ⇄ ECEF, TEME → ECI, geodetic, topocentric (az/el/range), GMST + equation of equinoxes |
+| **Propagation** | RK4 with J2/J3/J4, atmospheric drag (US Standard 1976), SRP, lunisolar third-body |
+| **Auto-backend** | CUDA GPU → C++ OpenMP → NumPy batch → Python fallback, transparent fallback |
+| **Conjunction** | KDTree broad-phase, pairwise distance scan, Brent TCA refinement, Chan collision probability |
+| **Pass prediction** | SGP4 → RK4 seamless handoff, elevation/visibility filtering, ~85 cities built-in |
+| **Ephemeris** | Sun/Moon ECI positions via VSOP87/ELP-2000, eclipse state (umbra/penumbra) |
+| **TUI** | 6 modes, help overlay, collapsible advanced sections, JSON export, persistence, autocomplete cities |
+| **Coordinate frames** | ECI ⇄ ECEF, TEME → ECI, geodetic, topocentric (az/el/range), GMST + equation of equinoxes |
 
 ## Architecture
 
@@ -191,8 +187,8 @@ CUDA GPU → C++/OpenMP → NumPy batch → pure Python.
 $ astrosis backend
 ╭─────────────────────────────── Backend Status ───────────────────────────────╮
 │ Active backend: CUDA                                                         │
-│   ✓ CUDA  ✓ C++/OpenMP  ✓ NumPy batch  ✓ Python fallback                    │
-│ GPU: NVIDIA GPU                                                             │
+│       ✓ CUDA  ✓ C++/OpenMP  ✓ NumPy batch  ✓ Python fallback                │
+│ GPU: NVIDIA GPU                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
