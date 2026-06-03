@@ -12,6 +12,8 @@ constexpr double MU_MOON      = 4902.800066;      // Moon gravitational paramete
 constexpr double AU_CONST     = 149597870.7;      // Astronomical unit [km]
 constexpr double P_SR         = 4.56e-6;          // Solar radiation pressure [N/m²]
 
+constexpr double KM_TO_M       = 1000.0;           // km → m conversion
+
 // ── Conjunction Thresholds ───────────────────────────────────────────────────
 constexpr double CRITICAL_DISTANCE = 0.1;         // CRITICAL warning [km]
 constexpr double WARNING_DISTANCE  = 1.0;         // WARNING [km]

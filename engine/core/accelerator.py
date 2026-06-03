@@ -152,13 +152,16 @@ def propagate_steps(
     curr = tuple(state)
     rem = total_seconds
     steps_taken = 0
+    elapsed = 0.0
     while rem > 0:
         dt = min(step_size, rem)
         curr = rk4_step(
-            curr, dt, mjd0, steps_taken, area if with_drag else 0.0, mass, cd, cr
+            curr, dt, mjd0, steps_taken, area if with_drag else 0.0, mass, cd, cr,
+            elapsed_seconds=elapsed,
         )
         rem -= dt
         steps_taken += 1
+        elapsed += dt
     return list(curr)
 
 
@@ -261,17 +264,15 @@ def propagate_batch_full_history(
                 exc_info=True,
             )
 
+    from .propagator import rk4_batch
+
     n = len(states)
     history = np.zeros((steps + 1, n, 6))
     history[0] = arr
-    curr = arr
+    curr = arr.copy()
     for s in range(1, steps + 1):
         step_mjd0 = mjd0 + ((s - 1) * dt_seconds) / 86400.0 if mjd0 > 0 else 0.0
-        curr = np.array(
-            propagate_batch_numpy(
-                curr.tolist(), dt_seconds, 1, area, mass, cd, cr, with_drag, step_mjd0
-            )
-        )
+        curr = rk4_batch(curr, dt_seconds, 1, area, mass, cd, cr, with_drag, step_mjd0)
         history[s] = curr
     return history
 

@@ -25,6 +25,8 @@ def _gravity_accel(x, y, z, r_mag, r2, r3, r5, r7):
     ax = -MU * x / r3
     ay = -MU * y / r3
     az = -MU * z / r3
+    if r_mag < 1.0:
+        return ax, ay, az
 
     z2_r2 = (z * z) / r2
     j2f = 1.5 * J2 * MU * RE * RE / r5
@@ -81,25 +83,21 @@ _ATMO_TABLE = [
 def get_atmospheric_density(altitude_km):
     if np.ndim(altitude_km) == 0:
         alt = float(altitude_km)
-        if alt >= 1000:
-            return 0.0
         if alt < 0:
             alt = 0.0
         for i in range(len(_ATMO_TABLE) - 1):
             h0, H, rho0 = _ATMO_TABLE[i]
             if h0 <= alt < _ATMO_TABLE[i + 1][0]:
                 return rho0 * math.exp(-(alt - h0) / H)
-        return 0.0
+        h_last, H_last, rho_last = _ATMO_TABLE[-1]
+        return rho_last * math.exp(-(alt - h_last) / H_last)
 
     alt = np.atleast_1d(np.asarray(altitude_km, dtype=np.float64))
-    rho = np.zeros_like(alt)
-    for i in range(len(_ATMO_TABLE) - 1):
-        h0, H, rho0 = _ATMO_TABLE[i]
-        mask = (alt >= h0) & (alt < _ATMO_TABLE[i + 1][0])
-        if np.any(mask):
-            rho[mask] = rho0 * np.exp(-(alt[mask] - h0) / H)
-    rho[alt >= 1000] = 0.0
-    return rho
+    h_bases = np.array([h for h, _, _ in _ATMO_TABLE])
+    H_vals = np.array([H for _, H, _ in _ATMO_TABLE])
+    rho0_vals = np.array([rho for _, _, rho in _ATMO_TABLE])
+    idx = np.clip(np.searchsorted(h_bases, alt, side="right") - 1, 0, len(_ATMO_TABLE) - 1)
+    return rho0_vals[idx] * np.exp(-(alt - h_bases[idx]) / H_vals[idx])
 
 
 def _third_body_accel(r, r_body, mu_body):
@@ -155,6 +153,7 @@ def rk4_step(
     mass: float = 1.0,
     cd: float = 2.2,
     cr: float = 1.5,
+    elapsed_seconds: float | None = None,
 ) -> tuple:
     """
     Fixed-step RK4 integration (one step).
@@ -176,7 +175,7 @@ def rk4_step(
         Propagated state tuple of 6 floats.
     """
 
-    def accel(r, v, local_mjd):
+    def accel(r, v, local_mjd, r_sun=None, r_moon=None):
         x, y, z = r[0], r[1], r[2]
         r_mag = math.sqrt(x * x + y * y + z * z)
         r2 = r_mag * r_mag
@@ -201,8 +200,10 @@ def rk4_step(
                     az += drag_coeff * vr_z
 
         if mjd0 > 0.0:
-            r_sun = sun_position_eci(local_mjd)
-            r_moon = moon_position_eci(local_mjd)
+            if r_sun is None:
+                r_sun = sun_position_eci(local_mjd)
+            if r_moon is None:
+                r_moon = moon_position_eci(local_mjd)
 
             sax, say, saz = _third_body_accel(r, r_sun, MU_SUN)
             ax += sax
@@ -224,26 +225,38 @@ def rk4_step(
     r = state[:3]
     v = state[3:]
 
-    mjd_start = mjd0 + (current_step * dt) / 86400.0 if mjd0 > 0 else 0.0
-    mjd_mid = mjd_start + (dt / 2.0) / 86400.0 if mjd0 > 0 else 0.0
-    mjd_end = mjd_start + dt / 86400.0 if mjd0 > 0 else 0.0
+    if mjd0 > 0.0:
+        if elapsed_seconds is not None:
+            elapsed = elapsed_seconds
+        else:
+            elapsed = current_step * dt
+        mjd_start = mjd0 + elapsed / 86400.0
+        mjd_mid = mjd_start + (dt / 2.0) / 86400.0
+        mjd_end = mjd_start + dt / 86400.0
+        r_sun_start, r_moon_start = sun_position_eci(mjd_start), moon_position_eci(mjd_start)
+        r_sun_mid, r_moon_mid = sun_position_eci(mjd_mid), moon_position_eci(mjd_mid)
+        r_sun_end, r_moon_end = sun_position_eci(mjd_end), moon_position_eci(mjd_end)
+    else:
+        mjd_start = mjd_mid = mjd_end = 0.0
+        r_sun_start = r_sun_mid = r_sun_end = None
+        r_moon_start = r_moon_mid = r_moon_end = None
 
-    k1_v = accel(r, v, mjd_start)
+    k1_v = accel(r, v, mjd_start, r_sun_start, r_moon_start)
     k1_r = v
 
     r1 = tuple(r[i] + 0.5 * dt * k1_r[i] for i in range(3))
     v1 = tuple(v[i] + 0.5 * dt * k1_v[i] for i in range(3))
-    k2_v = accel(r1, v1, mjd_mid)
+    k2_v = accel(r1, v1, mjd_mid, r_sun_mid, r_moon_mid)
     k2_r = v1
 
     r2 = tuple(r[i] + 0.5 * dt * k2_r[i] for i in range(3))
     v2 = tuple(v[i] + 0.5 * dt * k2_v[i] for i in range(3))
-    k3_v = accel(r2, v2, mjd_mid)
+    k3_v = accel(r2, v2, mjd_mid, r_sun_mid, r_moon_mid)
     k3_r = v2
 
     r3_tmp = tuple(r[i] + dt * k3_r[i] for i in range(3))
     v3_tmp = tuple(v[i] + dt * k3_v[i] for i in range(3))
-    k4_v = accel(r3_tmp, v3_tmp, mjd_end)
+    k4_v = accel(r3_tmp, v3_tmp, mjd_end, r_sun_end, r_moon_end)
     k4_r = v3_tmp
 
     res = tuple(
@@ -268,9 +281,11 @@ def _accel_batch(
     cr: float = 1.5,
     with_drag: bool = False,
     mjd: float = 0.0,
+    r_sun: tuple[float, float, float] | np.ndarray | None = None,
+    r_moon: tuple[float, float, float] | np.ndarray | None = None,
 ) -> np.ndarray:
     X, Y, Z = R[:, 0], R[:, 1], R[:, 2]
-    R_mag = np.linalg.norm(R, axis=1)
+    R_mag = np.maximum(np.linalg.norm(R, axis=1), 1.0)
     R2 = R_mag**2
     R3 = R2 * R_mag
     R5 = R3 * R2
@@ -313,8 +328,10 @@ def _accel_batch(
             az[mask] += drag_coeff * vr_z
 
     if mjd > 0.0:
-        r_sun = sun_position_eci(mjd)
-        r_moon = moon_position_eci(mjd)
+        if r_sun is None:
+            r_sun = sun_position_eci(mjd)
+        if r_moon is None:
+            r_moon = moon_position_eci(mjd)
 
         dx = r_sun[0] - X
         dy = r_sun[1] - Y
@@ -369,25 +386,80 @@ def rk4_batch(
 
     for step in range(steps):
         mjd_start = mjd0 + (step * dt_seconds) / 86400.0 if mjd0 > 0 else 0.0
-        mjd_mid = mjd_start + (dt_seconds / 2.0) / 86400.0 if mjd0 > 0 else 0.0
-        mjd_end = mjd_start + dt_seconds / 86400.0 if mjd0 > 0 else 0.0
+        mjd_mid = 0.0
+        mjd_end = 0.0
+        r_sun_start = r_sun_mid = r_sun_end = None
+        r_moon_start = r_moon_mid = r_moon_end = None
+        if mjd0 > 0:
+            mjd_mid = mjd_start + (dt_seconds / 2.0) / 86400.0
+            mjd_end = mjd_start + dt_seconds / 86400.0
+            r_sun_start = sun_position_eci(mjd_start)
+            r_sun_mid = sun_position_eci(mjd_mid)
+            r_sun_end = sun_position_eci(mjd_end)
+            r_moon_start = moon_position_eci(mjd_start)
+            r_moon_mid = moon_position_eci(mjd_mid)
+            r_moon_end = moon_position_eci(mjd_end)
 
-        k1_v = _accel_batch(R, V, area, mass, cd, cr, with_drag, mjd_start)
+        k1_v = _accel_batch(
+            R,
+            V,
+            area,
+            mass,
+            cd,
+            cr,
+            with_drag,
+            mjd_start,
+            r_sun=r_sun_start,
+            r_moon=r_moon_start,
+        )
         k1_r = V
 
         R1 = R + 0.5 * dt_seconds * k1_r
         V1 = V + 0.5 * dt_seconds * k1_v
-        k2_v = _accel_batch(R1, V1, area, mass, cd, cr, with_drag, mjd_mid)
+        k2_v = _accel_batch(
+            R1,
+            V1,
+            area,
+            mass,
+            cd,
+            cr,
+            with_drag,
+            mjd_mid,
+            r_sun=r_sun_mid,
+            r_moon=r_moon_mid,
+        )
         k2_r = V1
 
         R2 = R + 0.5 * dt_seconds * k2_r
         V2 = V + 0.5 * dt_seconds * k2_v
-        k3_v = _accel_batch(R2, V2, area, mass, cd, cr, with_drag, mjd_mid)
+        k3_v = _accel_batch(
+            R2,
+            V2,
+            area,
+            mass,
+            cd,
+            cr,
+            with_drag,
+            mjd_mid,
+            r_sun=r_sun_mid,
+            r_moon=r_moon_mid,
+        )
         k3_r = V2
 
         R3 = R + dt_seconds * k3_r
         V3 = V + dt_seconds * k3_v
-        k4_v = _accel_batch(R3, V3, area, mass, cd, cr, with_drag, mjd_end)
+        k4_v = _accel_batch(
+            R3,
+            V3,
+            area,
+            mass,
+            cd,
+            cr,
+            with_drag,
+            mjd_end,
+            r_sun=r_sun_end,
+            r_moon=r_moon_end,
+        )
         k4_r = V3
 
         R += (dt_seconds / 6.0) * (k1_r + 2 * k2_r + 2 * k3_r + k4_r)

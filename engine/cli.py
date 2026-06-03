@@ -49,19 +49,22 @@ def _load_csv(path: str) -> tuple:
     try:
         with open(path) as f:
             reader = csv.reader(f)
-            header = next(reader, None)
-            if header is None:
+            first = next(reader, None)
+            if first is None:
                 raise ValueError(f"Empty CSV: {path}")
-            ncols = len(header)
-            has_ids = ncols == 7
-            if has_ids:
+            ncols = len(first)
+            if ncols == 7:
                 for row in reader:
                     ids.append(row[0])
                     rows.append([float(x) for x in row[1:7]])
             else:
+                try:
+                    rows.append([float(x) for x in first[:6]])
+                except ValueError:
+                    pass
                 for row in reader:
-                    ids.append(str(len(rows)))
                     rows.append([float(x) for x in row[:6]])
+                ids = [str(i) for i in range(len(rows))]
     except FileNotFoundError:
         console.print(Panel(f"[red]File not found: {path}[/red]", title="Error"))
         sys.exit(1)
@@ -177,9 +180,6 @@ def _passes(args):
     elif args.lat is not None and args.lon is not None:
         lat = args.lat
         lon = args.lon
-        display_name = (
-            f"{lat}°{', ' + str(lon) + '°' if lon >= 0 else ', ' + str(lon) + '°'}"
-        )
         display_name = f"{lat}°, {lon}°"
     elif args.lat is not None:
         console.print(
@@ -684,11 +684,6 @@ def _ephemeris(args):
 # ── Dispatch ────────────────────────────────────────────────────────────────────
 
 _DISPATCH = {}
-
-
-def _register(fn):
-    _DISPATCH[fn.__name__[1:]] = fn
-    return fn
 
 
 _DISPATCH = {

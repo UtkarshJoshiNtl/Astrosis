@@ -35,14 +35,14 @@ static constexpr AtmoEntry ATMO_TABLE[] = {
 static constexpr int ATMO_N = sizeof(ATMO_TABLE) / sizeof(AtmoEntry);
 
 static double atmospheric_density(double alt_km) {
-    if (alt_km >= 1000.0) return 0.0;
-    if (alt_km < 0.0)     alt_km = 0.0;
+    if (alt_km < 0.0) alt_km = 0.0;
     for (int i = 0; i < ATMO_N - 1; ++i) {
         if (ATMO_TABLE[i].alt_base_km <= alt_km && alt_km < ATMO_TABLE[i+1].alt_base_km)
             return ATMO_TABLE[i].rho_base * std::exp(-(alt_km - ATMO_TABLE[i].alt_base_km)
                                                         / ATMO_TABLE[i].scale_height_km);
     }
-    return 0.0;
+    const auto& last = ATMO_TABLE[ATMO_N - 1];
+    return last.rho_base * std::exp(-(alt_km - last.alt_base_km) / last.scale_height_km);
 }
 
 // ── Ephemeris ────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ static std::array<double, 3> sun_position_eci(double mjd) {
     double q = 280.459 + 0.98564736 * d;
     double L_rad = (q + 1.915 * std::sin(g_rad) + 0.020 * std::sin(2 * g_rad)) * DEG2RAD;
     double R_au = 1.00014 - 0.01671 * std::cos(g_rad) - 0.00014 * std::cos(2 * g_rad);
-    double R_km = R_au * AU_CONST; // Note: Need to make sure AU_CONST is defined
+    double R_km = R_au * AU_CONST;
     double e_rad = (23.439 - 0.00000036 * d) * DEG2RAD;
     return {
         R_km * std::cos(L_rad),
@@ -282,12 +282,13 @@ void Propagator::propagate_batch(double* states_inout, int n,
                                  double dt_seconds, int steps, double mjd0) const {
     #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
+        size_t idx = (size_t)i * 6;
         StateVector s;
-        std::memcpy(s.raw(), &states_inout[i * 6], 6 * sizeof(double));
+        std::memcpy(s.raw(), &states_inout[idx], 6 * sizeof(double));
         for (int step = 0; step < steps; ++step) {
             s = rk4_step(s, dt_seconds, mjd0, step);
         }
-        std::memcpy(&states_inout[i * 6], s.raw(), 6 * sizeof(double));
+        std::memcpy(&states_inout[idx], s.raw(), 6 * sizeof(double));
     }
 }
 
@@ -296,12 +297,13 @@ void Propagator::propagate_batch_drag(double* states_inout, int n,
                                       double area, double mass, double cd, double cr, double mjd0) const {
     #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
+        size_t idx = (size_t)i * 6;
         StateVector s;
-        std::memcpy(s.raw(), &states_inout[i * 6], 6 * sizeof(double));
+        std::memcpy(s.raw(), &states_inout[idx], 6 * sizeof(double));
         for (int step = 0; step < steps; ++step) {
             s = rk4_step_drag(s, dt_seconds, area, mass, cd, cr, mjd0, step);
         }
-        std::memcpy(&states_inout[i * 6], s.raw(), 6 * sizeof(double));
+        std::memcpy(&states_inout[idx], s.raw(), 6 * sizeof(double));
     }
 }
 
@@ -341,9 +343,11 @@ void Propagator::batch_propagate_full_history(
         double* output_history) const {
     #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
+        size_t idx = (size_t)i * 6;
         StateVector s;
-        std::memcpy(s.raw(), &initial_states[i * 6], 6 * sizeof(double));
-        std::memcpy(&output_history[0 * (n * 6) + i * 6], s.raw(), 6 * sizeof(double));
+        std::memcpy(s.raw(), &initial_states[idx], 6 * sizeof(double));
+        size_t base_out = (size_t)0 * (size_t)n * 6 + idx;
+        std::memcpy(&output_history[base_out], s.raw(), 6 * sizeof(double));
 
         for (int step = 0; step < steps; ++step) {
             if (with_drag) {
@@ -351,7 +355,8 @@ void Propagator::batch_propagate_full_history(
             } else {
                 s = rk4_step(s, dt_seconds, mjd0, step);
             }
-            std::memcpy(&output_history[(step + 1) * (n * 6) + i * 6], s.raw(), 6 * sizeof(double));
+            size_t step_out = (size_t)(step + 1) * (size_t)n * 6 + idx;
+            std::memcpy(&output_history[step_out], s.raw(), 6 * sizeof(double));
         }
     }
 }

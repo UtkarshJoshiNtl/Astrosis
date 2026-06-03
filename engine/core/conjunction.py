@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -240,20 +242,17 @@ class ConjunctionDetector:
                 t_hi = min(lookahead_s, tca_coarse + step_s)
 
                 def dist_at_t(t: float) -> float:
-                    # Inter-object distance at time t by interpolating
-                    # the pre-propagated trajectory (nearest-step + RK4
-                    # sub-step for fractional remainder). This is the
-                    # objective function for Brent TCA refinement.
                     n_nearest = int(t / step_s)
                     t_rem = t - n_nearest * step_s
+                    elapsed = n_nearest * step_s
                     curr_s = tuple(all_sats[n_nearest][sat_idx])
                     curr_d = tuple(all_debs[n_nearest][deb_idx])
                     if t_rem > 1e-9:
                         curr_s = rk4_step(
-                            curr_s, t_rem, mjd0=mjd0, current_step=n_nearest
+                            curr_s, t_rem, mjd0=mjd0, elapsed_seconds=elapsed
                         )
                         curr_d = rk4_step(
-                            curr_d, t_rem, mjd0=mjd0, current_step=n_nearest
+                            curr_d, t_rem, mjd0=mjd0, elapsed_seconds=elapsed
                         )
                     dx = curr_s[0] - curr_d[0]
                     dy = curr_s[1] - curr_d[1]
@@ -275,6 +274,15 @@ class ConjunctionDetector:
                 else:
                     continue
 
+                # Recompute relative velocity at refined TCA
+                n_final = int(final_tca / step_s)
+                t_final_rem = final_tca - n_final * step_s
+                final_s = tuple(all_sats[n_final][sat_idx])
+                final_d = tuple(all_debs[n_final][deb_idx])
+                if t_final_rem > 1e-9:
+                    final_s = rk4_step(final_s, t_final_rem, mjd0=mjd0, elapsed_seconds=n_final * step_s)
+                    final_d = rk4_step(final_d, t_final_rem, mjd0=mjd0, elapsed_seconds=n_final * step_s)
+                rel_v_at_tca = [final_s[3] - final_d[3], final_s[4] - final_d[4], final_s[5] - final_d[5]]
                 rel_speed = math.sqrt(sum(v * v for v in rel_v_at_tca))
                 pc = _chan_pc(final_dist, sigma_pos, rel_speed)
 

@@ -16,6 +16,7 @@ __device__ __forceinline__ double C_MU_SUN() { return 132712440018.0; }
 __device__ __forceinline__ double C_MU_MOON() { return 4902.800066; }
 __device__ __forceinline__ double C_AU()     { return 149597870.7; }
 __device__ __forceinline__ double C_P_SR()   { return 4.56e-6; }
+__device__ __forceinline__ double C_KM2M()   { return 1000.0; }  // km → m
 
 struct CA { double alt, H, rho0; };
 __device__ __forceinline__ CA C_ATM(int i) {
@@ -157,7 +158,7 @@ __device__ __forceinline__ void accel_drag(
         double vrz = vz;
         double vm = sqrt(vrx*vrx + vry*vry + vrz*vrz);
         if(vm > 0) {
-            double df = -0.5 * cd * (A / m) * rho * vm * 1000.0;
+            double df = -0.5 * cd * (A / m) * rho * vm * C_KM2M();
             ax += df * vrx; ay += df * vry; az += df * vrz;
         }
     }

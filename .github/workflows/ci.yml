@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install flake8 black mypy
+      - run: flake8 engine/
+      - run: black --check engine/
+      - run: mypy engine/ --ignore-missing-imports || true
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pip install pytest
+      - run: pytest tests/ -v
+
+  cpp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pybind11
+      - run: sudo apt-get update && sudo apt-get install -y cmake build-essential
+      - run: cmake -S cpp -B cpp/build -DUSE_CUDA=OFF
+      - run: cmake --build cpp/build -- -j$(nproc)

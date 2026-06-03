@@ -33,13 +33,14 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SoA kernel — coalesced memory accesses for all 6 components
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // Layout: X[0..n-1], Y[n..2n-1], Z[2n..3n-1], VX[3n..4n-1], VY[4n..5n-1], VZ[5n..6n-1]
-__global__ void k_prop_soa(double* __restrict__ X,  double* __restrict__ Y,
-                             double* __restrict__ Z,  double* __restrict__ VX,
-                             double* __restrict__ VY, double* __restrict__ VZ,
-                             int n, double dt, int steps, 
-                             bool drag, double A, double m, double cd, double cr, double mjd0){
+__global__ void __launch_bounds__(256) k_prop_soa(
+    double* __restrict__ X,  double* __restrict__ Y,
+    double* __restrict__ Z,  double* __restrict__ VX,
+    double* __restrict__ VY, double* __restrict__ VZ,
+    int n, double dt, int steps, 
+    bool drag, double A, double m, double cd, double cr, double mjd0){
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n) return;
 
@@ -55,26 +56,40 @@ __global__ void k_prop_soa(double* __restrict__ X,  double* __restrict__ Y,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Full History Kernel (AoS, unchanged from alpha)
+// Full History Kernel (AoS)
+// Output layout matches numpy (steps+1, n, 6) C-contiguous:
+//   H[step * (n * 6) + obj * 6 + comp]
 // ─────────────────────────────────────────────────────────────────────────────
-__global__ void k_history(const double* __restrict__ S0, int n, double dt, int steps, 
-                           bool drag, double A, double m, double cd, double cr, double mjd0, 
-                           double* __restrict__ H){
+__global__ void __launch_bounds__(256) k_history(
+    const double* __restrict__ S0, int n, double dt, int steps, 
+    bool drag, double A, double m, double cd, double cr, double mjd0, 
+    double* __restrict__ H){
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n) return;
 
     double x  = S0[i*6],   y  = S0[i*6+1], z  = S0[i*6+2];
     double vx = S0[i*6+3], vy = S0[i*6+4], vz = S0[i*6+5];
 
+    long long row_stride = (long long)n * 6;
+    long long obj_offset = (long long)i * 6;
+
     // step 0
-    H[0*(n*6) + i*6+0]=x; H[0*(n*6) + i*6+1]=y; H[0*(n*6) + i*6+2]=z;
-    H[0*(n*6) + i*6+3]=vx; H[0*(n*6) + i*6+4]=vy; H[0*(n*6) + i*6+5]=vz;
+    H[0 * row_stride + obj_offset + 0] = x;
+    H[0 * row_stride + obj_offset + 1] = y;
+    H[0 * row_stride + obj_offset + 2] = z;
+    H[0 * row_stride + obj_offset + 3] = vx;
+    H[0 * row_stride + obj_offset + 4] = vy;
+    H[0 * row_stride + obj_offset + 5] = vz;
 
     for(int s=1; s<=steps; s++){
         rk4_step_device(x, y, z, vx, vy, vz, dt, drag, A, m, cd, cr, mjd0, s-1);
-        int out_idx = s*(n*6) + i*6;
-        H[out_idx+0]=x; H[out_idx+1]=y; H[out_idx+2]=z;
-        H[out_idx+3]=vx; H[out_idx+4]=vy; H[out_idx+5]=vz;
+        long long out_idx = (long long)s * row_stride + obj_offset;
+        H[out_idx + 0] = x;
+        H[out_idx + 1] = y;
+        H[out_idx + 2] = z;
+        H[out_idx + 3] = vx;
+        H[out_idx + 4] = vy;
+        H[out_idx + 5] = vz;
     }
 }
 
@@ -149,6 +164,7 @@ static void run_streamed(double* s, int n, double dt, int steps,
     double* h0vy = h0x + 4 * half;
     double* h0vz = h0x + 5 * half;
 
+    #pragma omp parallel for
     for (int i = 0; i < half; i++) {
         h0x[i] = s[i*6]; h0y[i] = s[i*6+1]; h0z[i] = s[i*6+2];
         h0vx[i] = s[i*6+3]; h0vy[i] = s[i*6+4]; h0vz[i] = s[i*6+5];
@@ -161,6 +177,7 @@ static void run_streamed(double* s, int n, double dt, int steps,
     double* h1vy = h1x + 4 * rem;
     double* h1vz = h1x + 5 * rem;
 
+    #pragma omp parallel for
     for (int i = 0; i < rem; i++) {
         int idx = (half + i) * 6;
         h1x[i] = s[idx]; h1y[i] = s[idx+1]; h1z[i] = s[idx+2];
@@ -195,10 +212,12 @@ static void run_streamed(double* s, int n, double dt, int steps,
     CUDA_CHECK(cudaStreamSynchronize(st0));
     CUDA_CHECK(cudaStreamSynchronize(st1));
 
+    #pragma omp parallel for
     for (int i = 0; i < half; i++) {
         s[i*6] = h0x[i]; s[i*6+1] = h0y[i]; s[i*6+2] = h0z[i];
         s[i*6+3] = h0vx[i]; s[i*6+4] = h0vy[i]; s[i*6+5] = h0vz[i];
     }
+    #pragma omp parallel for
     for (int i = 0; i < rem; i++) {
         int idx = (half + i) * 6;
         s[idx] = h1x[i]; s[idx+1] = h1y[i]; s[idx+2] = h1z[i];
@@ -209,7 +228,7 @@ static void run_streamed(double* s, int n, double dt, int steps,
 }
 
 // ── Monte Carlo Conjunction Kernel ───────────────────────────────────────────
-__global__ void k_monte_carlo(
+__global__ void __launch_bounds__(256) k_monte_carlo(
     const double* __restrict__ sat_samples,
     const double* __restrict__ deb_samples,
     int n, double dt, int steps, double threshold_km,
@@ -236,6 +255,11 @@ __global__ void k_monte_carlo(
         rk4_step_device(dx, dy, dz, dvx, dvy, dvz, dt, false, 0, 1, 0, 1.5, mjd0, st);
     }
 
+    // Check distance at final state (t = steps * dt)
+    double rx = sx - dx, ry = sy - dy, rz = sz - dz;
+    double d2 = rx*rx + ry*ry + rz*rz;
+    if (d2 < min_dist) min_dist = d2;
+
     if (sqrt(min_dist) < threshold_km) {
         atomicAdd(collision_count, 1);
     }
@@ -258,7 +282,9 @@ double cuda_monte_carlo_pc(
     int blk = 256;
     k_monte_carlo<<<(n + blk - 1) / blk, blk>>>(
         (double*)d_sat.ptr, (double*)d_deb.ptr, n, dt, steps, threshold_km, (int*)d_cnt.ptr, mjd0);
-    
+
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(&h_count, d_cnt.ptr, sizeof(int), cudaMemcpyDeviceToHost));
 
     return (double)h_count / n;
@@ -272,10 +298,13 @@ bool cuda_available(){
     int c=0; return cudaGetDeviceCount(&c)==cudaSuccess && c>0;
 }
 int cuda_device_count(){
-    int c=0; cudaGetDeviceCount(&c); return c;
+    int c=0;
+    if (cudaGetDeviceCount(&c) != cudaSuccess) return 0;
+    return c;
 }
 void cuda_print_device_info(){
-    int c=0; cudaGetDeviceCount(&c);
+    int c=0;
+    if (cudaGetDeviceCount(&c) != cudaSuccess || c == 0) return;
     for(int i=0;i<c;i++){
         cudaDeviceProp p; cudaGetDeviceProperties(&p,i);
         printf("GPU %d: %s | SM %d.%d | %.0f MB | %d SMs\n",

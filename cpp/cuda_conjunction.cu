@@ -6,6 +6,7 @@
 #include "cuda_physics.cuh"
 #include <cuda_runtime.h>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 #include <stdexcept>
 #include <string>
@@ -32,21 +33,21 @@ struct GpuWarning {
 // Stores in SoA layout per timestep: step(comp(n)) = s*6*n + c*n + i
 // This allows coalesced reads by the scan kernel and eliminates the
 // O(ns*nd) redundant propagations from the per-pair approach.
-__global__ void k_prepropagate(
+__global__ void __launch_bounds__(256) k_prepropagate(
     const double* __restrict__ states_in,
     double* __restrict__ states_out,
-    int n, double dt, int steps, double mjd0) {
+    int n, double dt, int64_t steps, double mjd0) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
 
     double x = states_in[i*6],   y = states_in[i*6+1], z = states_in[i*6+2];
     double vx = states_in[i*6+3],vy = states_in[i*6+4],vz = states_in[i*6+5];
 
-    int cs = n;
-    int ss = cs * 6;
+    long long cs = (long long)n;
+    long long ss = cs * 6;
 
     for (int s = 0; s <= steps; s++) {
-        int base = s * ss;
+        long long base = (long long)s * ss;
         states_out[base + 0*cs + i] = x;
         states_out[base + 1*cs + i] = y;
         states_out[base + 2*cs + i] = z;
@@ -61,8 +62,10 @@ __global__ void k_prepropagate(
 
 // ── Scan pre-propagated trajectory for closest approach ─────
 // Both arrays are in SoA layout: step0[X0..Xn-1,Y0..Yn-1,...], step1[...]
-// All threads in a warp access consecutive addresses — fully coalesced.
-__global__ void k_scan_pairs(
+// Uses 1D block where each thread in a warp reads consecutive satellite indices
+// (fully coalesced) and all threads share the same debris index (L1-cached).
+// Block layout: gridDim.x = ceil(ns / block_size), gridDim.y = nd
+__global__ void __launch_bounds__(256) k_scan_pairs(
     const double* __restrict__ sats_full, int ns,
     const double* __restrict__ debs_full, int nd,
     int nsteps, double step_s,
@@ -70,17 +73,17 @@ __global__ void k_scan_pairs(
     int* __restrict__ out_count,
     int max_out) {
     int si = blockIdx.x * blockDim.x + threadIdx.x;
-    int di = blockIdx.y * blockDim.y + threadIdx.y;
-    if (si >= ns || di >= nd) return;
+    int di = blockIdx.y;
+    if (si >= ns) return;
 
     double min_dist = 1e15, tca = 0.0;
     double rv_x = 0, rv_y = 0, rv_z = 0;
-    int s_stride = ns * 6;
-    int d_stride = nd * 6;
+    long long s_stride = (long long)ns * 6;
+    long long d_stride = (long long)nd * 6;
 
     for (int st = 0; st <= nsteps; st++) {
-        int sb = st * s_stride;
-        int db = st * d_stride;
+        long long sb = (long long)st * s_stride;
+        long long db = (long long)st * d_stride;
         double rx = sats_full[sb + si] - debs_full[db + di];
         double ry = sats_full[sb + ns + si] - debs_full[db + nd + di];
         double rz = sats_full[sb + 2*ns + si] - debs_full[db + 2*nd + di];
@@ -116,8 +119,8 @@ std::vector<ConjunctionWarning> cuda_detect_conjunctions(
 
     if (ns == 0 || nd == 0) return {};
 
-    int nsteps = (int)(lookahead_s / step_s);
-    int max_out = std::max(ns * nd / 10, 1024);
+    int64_t nsteps = (int64_t)(lookahead_s / step_s);
+    int max_out = std::max((int)((long long)ns * nd / 10), 1024);
 
     // Input buffers (AoS)
     DeviceMem ds(ns*6*sizeof(double));
@@ -135,16 +138,20 @@ std::vector<ConjunctionWarning> cuda_detect_conjunctions(
     int blk = 256;
     k_prepropagate<<<(ns + blk - 1) / blk, blk>>>(
         (double*)ds.ptr, (double*)ds_full.ptr, ns, step_s, nsteps, mjd0);
+    CUDA_CHECK(cudaGetLastError());
     k_prepropagate<<<(nd + blk - 1) / blk, blk>>>(
         (double*)dd.ptr, (double*)dd_full.ptr, nd, step_s, nsteps, mjd0);
     CUDA_CHECK(cudaGetLastError());
 
     // Phase 2: Distance-only scan over all pairs
+    // 1D blocks: each warp reads consecutive satellite indices (coalesced),
+    // all threads in a block share the same debris index (L1-cached).
+    int blk2 = 256;
+    dim3 grd2((ns + blk2 - 1) / blk2, nd);
     DeviceMem cnt(sizeof(int));
     DeviceMem gout(max_out*sizeof(GpuWarning));
     CUDA_CHECK(cudaMemset(cnt.ptr, 0, sizeof(int)));
 
-    dim3 blk2(16, 16), grd2((ns+15)/16, (nd+15)/16);
     k_scan_pairs<<<grd2, blk2>>>(
         (double*)ds_full.ptr, ns, (double*)dd_full.ptr, nd,
         nsteps, step_s,

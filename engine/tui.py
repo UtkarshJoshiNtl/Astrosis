@@ -10,7 +10,7 @@ import math
 from datetime import datetime, timezone
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.widgets import (
     Footer,
     Button,
@@ -46,18 +46,22 @@ def _load_csv_safe(path: str) -> tuple | str:
     try:
         with open(path) as f:
             reader = csv.reader(f)
-            header = next(reader, None)
-            if header is None:
+            first = next(reader, None)
+            if first is None:
                 return f"Empty CSV: {path}"
-            ncols = len(header)
-            has_ids = ncols == 7
-            for row in reader:
-                if has_ids:
+            ncols = len(first)
+            if ncols == 7:
+                for row in reader:
                     ids.append(row[0])
                     rows.append([float(x) for x in row[1:7]])
-                else:
-                    ids.append(str(len(rows)))
+            else:
+                try:
+                    rows.append([float(x) for x in first[:6]])
+                except ValueError:
+                    pass
+                for row in reader:
                     rows.append([float(x) for x in row[:6]])
+                ids = [str(i) for i in range(len(rows))]
     except FileNotFoundError:
         return f"File not found: {path}"
     except (csv.Error, ValueError) as e:
@@ -141,7 +145,7 @@ class AstrosisApp(App[None]):
 
     def __init__(self) -> None:
         super().__init__()
-        self._current_mode = "passes"
+        self._active_tab = "passes"
         self._passes_data: list = []
         self._conjunction_data: list = []
         self._conjunction_ids: tuple[list, list] = ([], [])
@@ -157,7 +161,7 @@ class AstrosisApp(App[None]):
     def compose(self) -> ComposeResult:
         yield Static(id="app-header")
         with Horizontal():
-            with Horizontal(id="input-panel"):
+            with Vertical(id="input-panel"):
                 yield Input(
                     id="norad-id", placeholder="NORAD ID", classes="passes-input"
                 )
@@ -206,7 +210,7 @@ class AstrosisApp(App[None]):
                     ListItem(Static("conjunction")),
                     id="mode-selector",
                 )
-            with Horizontal(id="results-panel"):
+            with Vertical(id="results-panel"):
                 yield DataTable(id="results-table")
                 yield Static(id="propagate-result", classes="hidden")
                 yield Static(id="detail-strip")
@@ -245,7 +249,7 @@ class AstrosisApp(App[None]):
         lv = self.query_one("#mode-selector", ListView)
         order = ["passes", "propagate", "conjunction"]
         try:
-            idx = order.index(self._current_mode)
+            idx = order.index(self._active_tab)
         except ValueError:
             idx = 0
         next_idx = (idx + 1) % len(order)
@@ -253,14 +257,15 @@ class AstrosisApp(App[None]):
         self._select_mode(order[next_idx])
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        if event.item:
-            label = event.item.children[0].renderable
-            self._select_mode(str(label).strip().lower())
+        if event.item is not None:
+            order = ["passes", "propagate", "conjunction"]
+            lv = self.query_one("#mode-selector", ListView)
+            self._select_mode(order[lv.index])
 
     def _select_mode(self, mode: str) -> None:
-        if mode == self._current_mode:
+        if mode == self._active_tab:
             return
-        self._current_mode = mode
+        self._active_tab = mode
         self._show_inputs_for_mode(mode)
         self._clear_results()
         if mode == "conjunction":
@@ -272,16 +277,17 @@ class AstrosisApp(App[None]):
         self._show_empty_state()
 
     def _set_passes_columns(self, table: DataTable) -> None:
-        table.clear()
+        table.clear(columns=True)
         table.add_columns("TIME (UTC)", "MAX EL", "AZIMUTH", "DURATION", "VISIBLE")
 
     def _set_conjunction_columns(self, table: DataTable) -> None:
-        table.clear()
+        table.clear(columns=True)
         table.add_columns("SAT", "DEBRIS", "MISS DIST", "TCA", "SEVERITY", "Pc")
 
     def _clear_results(self) -> None:
         table = self.query_one("#results-table", DataTable)
-        table.clear()
+        table.clear(columns=True)
+        table.display = True
         self.query_one("#propagate-result", Static).display = False
         self.query_one("#propagate-result", Static).update("")
         self.query_one("#detail-strip", Static).update("")
@@ -351,21 +357,21 @@ class AstrosisApp(App[None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
-            self._run_current_mode()
+            self._run_active_tab()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        self._run_current_mode()
+        self._run_active_tab()
 
-    def _run_current_mode(self) -> None:
-        if self._current_mode == "passes":
+    def _run_active_tab(self) -> None:
+        if self._active_tab == "passes":
             if not self._validate_passes():
                 return
             self._run_passes()
-        elif self._current_mode == "propagate":
+        elif self._active_tab == "propagate":
             if not self._validate_propagate():
                 return
             self._run_propagate()
-        elif self._current_mode == "conjunction":
+        elif self._active_tab == "conjunction":
             if not self._validate_conjunction():
                 return
             self._run_conjunction()
@@ -441,7 +447,8 @@ class AstrosisApp(App[None]):
         self._last_results = result
         self._passes_data = passes
         table = self.query_one("#results-table", DataTable)
-        table.clear()
+        table.display = True
+        table.clear(columns=True)
         self._set_passes_columns(table)
         for i, p in enumerate(passes):
             points = p.get("points", [])
@@ -535,7 +542,7 @@ class AstrosisApp(App[None]):
         self._propagate_dt = dt
 
         table = self.query_one("#results-table", DataTable)
-        table.clear()
+        table.display = False
         self.query_one("#propagate-result", Static).display = True
         self.query_one("#detail-strip", Static).update("")
 
@@ -614,7 +621,8 @@ class AstrosisApp(App[None]):
     ) -> None:
         self._conjunction_data = warnings
         table = self.query_one("#results-table", DataTable)
-        table.clear()
+        table.display = True
+        table.clear(columns=True)
         self._set_conjunction_columns(table)
         self.query_one("#propagate-result", Static).display = False
 
@@ -650,28 +658,35 @@ class AstrosisApp(App[None]):
     def _show_loading(self, message: str) -> None:
         self.query_one("#propagate-result", Static).display = False
         self.query_one("#detail-strip", Static).update("")
-        if self._current_mode == "propagate":
+        if self._active_tab == "propagate":
+            table = self.query_one("#results-table", DataTable)
+            table.display = False
             self.query_one("#propagate-result", Static).display = True
             self.query_one("#propagate-result", Static).update(f"[dim]{message}[/dim]")
         else:
             table = self.query_one("#results-table", DataTable)
-            table.clear()
-            if self._current_mode == "conjunction":
+            table.clear(columns=True)
+            if self._active_tab == "conjunction":
                 self._set_conjunction_columns(table)
             else:
                 self._set_passes_columns(table)
-            table.add_row("[dim]Loading...[/dim]", "", "", "", "")
+            if self._active_tab == "conjunction":
+                table.add_row("[dim]Loading...[/dim]", "", "", "", "", "")
+            else:
+                table.add_row("[dim]Loading...[/dim]", "", "", "", "")
 
     def _show_error(self, message: str) -> None:
         self.query_one("#propagate-result", Static).display = False
         self.query_one("#detail-strip", Static).update("")
-        if self._current_mode == "propagate":
+        if self._active_tab == "propagate":
+            table = self.query_one("#results-table", DataTable)
+            table.display = False
             self.query_one("#propagate-result", Static).display = True
             self.query_one("#propagate-result", Static).update(f"[red]{message}[/red]")
         else:
             table = self.query_one("#results-table", DataTable)
-            table.clear()
-            if self._current_mode == "conjunction":
+            table.clear(columns=True)
+            if self._active_tab == "conjunction":
                 self._set_conjunction_columns(table)
                 table.add_row("", "", "", "", f"[red]{message}[/red]", "")
             else:
@@ -687,7 +702,7 @@ class AstrosisApp(App[None]):
         except (ValueError, AttributeError):
             return
 
-        if self._current_mode == "passes" and idx < len(self._passes_data):
+        if self._active_tab == "passes" and idx < len(self._passes_data):
             p = self._passes_data[idx]
             points = p.get("points", [])
             t_start = datetime.fromisoformat(p["start_time"])
@@ -707,7 +722,7 @@ class AstrosisApp(App[None]):
                 f"set {set_str} · {illum_text}"
             )
 
-        elif self._current_mode == "conjunction" and idx < len(self._conjunction_data):
+        elif self._active_tab == "conjunction" and idx < len(self._conjunction_data):
             w = self._conjunction_data[idx]
             rv = w.relative_velocity
             rv_mag = math.sqrt(rv[0] * rv[0] + rv[1] * rv[1] + rv[2] * rv[2])
@@ -718,15 +733,15 @@ class AstrosisApp(App[None]):
 
     def action_export(self) -> None:
         date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
-        filename = f"astrosis_{self._current_mode}_{date_str}.json"
+        filename = f"astrosis_{self._active_tab}_{date_str}.json"
 
         data = {}
-        if self._current_mode == "passes" and self._last_results:
+        if self._active_tab == "passes" and self._last_results:
             data = self._last_results
             norad = self._export_params.get("norad_id", "")
             city = self._export_params.get("city", "unknown")
             filename = f"astrosis_passes_{norad}_{city}_{date_str}.json"
-        elif self._current_mode == "propagate" and self._propagate_final:
+        elif self._active_tab == "propagate" and self._propagate_final:
             data = {
                 "initial": self._propagate_initial,
                 "final": self._propagate_final,
@@ -736,7 +751,7 @@ class AstrosisApp(App[None]):
             }
             pid = self._export_params.get("norad_id", "state")
             filename = f"astrosis_propagate_{pid}_{date_str}.json"
-        elif self._current_mode == "conjunction" and self._conjunction_data:
+        elif self._active_tab == "conjunction" and self._conjunction_data:
             data = {
                 "conjunctions": [
                     {
@@ -776,7 +791,7 @@ class AstrosisApp(App[None]):
 
     def action_refresh(self) -> None:
         self._clear_results()
-        if self._current_mode == "conjunction":
+        if self._active_tab == "conjunction":
             table = self.query_one("#results-table", DataTable)
             self._set_conjunction_columns(table)
         else:

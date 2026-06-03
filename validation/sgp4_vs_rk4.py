@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from sgp4.api import Satrec, jday
 from engine.core.propagator import rk4_step
-from engine.geo.analysis import _teme_to_eci
+from engine.geo.frames import teme_to_eci
 from engine.constants import RE
 
 # ISS TLE (May 2025)
@@ -45,7 +45,7 @@ def run_research():
     
     # Initial State at Epoch (from SGP4)
     _, r0_teme, v0_teme = satrec.sgp4(jd, jdf)
-    r0_eci, v0_eci = _teme_to_eci(np.array(r0_teme), np.array(v0_teme), epoch_dt)
+    r0_eci, v0_eci = teme_to_eci(np.array(r0_teme), np.array(v0_teme), epoch_dt)
     state0 = tuple(list(r0_eci) + list(v0_eci))
     
     dt = 60.0  # 1 minute steps
@@ -72,7 +72,7 @@ def run_research():
         jd2, jdf2 = jday(step_dt.year, step_dt.month, step_dt.day,
                          step_dt.hour, step_dt.minute, step_dt.second)
         _, r_sgp4, v_sgp4 = satrec.sgp4(jd2, jdf2)
-        r_ref, _ = _teme_to_eci(np.array(r_sgp4), np.array(v_sgp4), step_dt)
+        r_ref, _ = teme_to_eci(np.array(r_sgp4), np.array(v_sgp4), step_dt)
         
         # 2. Astrosis RK4 - Gravity only
         curr_grav = rk4_step(curr_grav, dt, mjd0=0.0)

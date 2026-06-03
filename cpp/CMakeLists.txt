@@ -11,8 +11,8 @@ if(USE_CUDA)
     if(CUDAToolkit_FOUND)
         enable_language(CUDA)
         set(CMAKE_CUDA_STANDARD 17)
-        set(CMAKE_CUDA_ARCHITECTURES 75)
-        message(STATUS "CUDA found: ${CUDAToolkit_NVCC_EXECUTABLE} — building GPU kernels (sm_75)")
+        set(CMAKE_CUDA_ARCHITECTURES "75;80;86;89")
+        message(STATUS "CUDA found: ${CUDAToolkit_NVCC_EXECUTABLE} — building GPU kernels (sm_75,80,86,89)")
         set(HAS_CUDA TRUE)
     else()
         message(WARNING "USE_CUDA=ON but CUDAToolkit not found — building CPU-only")
@@ -64,13 +64,12 @@ if(MSVC)
     target_compile_options(physics_engine PRIVATE /O2 /fp:fast)
 else()
     target_compile_options(physics_engine PRIVATE
-        -O3 -march=native -ffast-math
+        -O3 -march=native
         -fno-omit-frame-pointer          # needed by perf/gprof profilers
-        -fopt-info-vec                   # report auto-vectorised loops to stdout at build time
     )
     if(HAS_CUDA)
         target_compile_options(physics_engine PRIVATE
-            $<$<COMPILE_LANGUAGE:CUDA>:-O3 --use_fast_math -lineinfo>
+            $<$<COMPILE_LANGUAGE:CUDA>:-O3 -lineinfo>
         )
     endif()
 endif()

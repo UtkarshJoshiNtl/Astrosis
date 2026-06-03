@@ -108,15 +108,15 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
     // ── 1. Pre-propagate all objects (batch full history) ──────────────────
     // Flat layout: (steps+1, n, 6) = n_frames × n_objects × 6 doubles.
     // Offset for step t, object i, component k: t * (n * 6) + i * 6 + k.
-    int steps = (int)(lookahead_s / step_s);
-    int n_frames = steps + 1;
+    int64_t steps = (int64_t)(lookahead_s / step_s);
+    int64_t n_frames = steps + 1;
 
     std::vector<double> init_sats(ns * 6);
     std::vector<double> init_debs(nd * 6);
     for (int i = 0; i < ns; ++i)
-        std::memcpy(&init_sats[i * 6], sat_states[i].raw(), 6 * sizeof(double));
+        std::memcpy(&init_sats[(size_t)i * 6], sat_states[i].raw(), 6 * sizeof(double));
     for (int i = 0; i < nd; ++i)
-        std::memcpy(&init_debs[i * 6], debris_states[i].raw(), 6 * sizeof(double));
+        std::memcpy(&init_debs[(size_t)i * 6], debris_states[i].raw(), 6 * sizeof(double));
 
     std::vector<double> sat_history(n_frames * ns * 6);
     std::vector<double> deb_history(n_frames * nd * 6);
@@ -152,15 +152,16 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
     // ── 3. Pairwise sweep + Brent refinement ───────────────────────────────
     for (int i = 0; i < ns; ++i) {
         // Broad-phase: sat i initial position
-        double sx0 = init_sats[i * 6 + 0];
-        double sy0 = init_sats[i * 6 + 1];
-        double sz0 = init_sats[i * 6 + 2];
+        size_t si = (size_t)i * 6;
+        double sx0 = init_sats[si];
+        double sy0 = init_sats[si + 1];
+        double sz0 = init_sats[si + 2];
 
         for (int j = 0; j < nd; ++j) {
-            // Broad-phase: initial separation check
-            double dx0 = sx0 - init_debs[j * 6 + 0];
-            double dy0 = sy0 - init_debs[j * 6 + 1];
-            double dz0 = sz0 - init_debs[j * 6 + 2];
+            size_t dj = (size_t)j * 6;
+            double dx0 = sx0 - init_debs[dj];
+            double dy0 = sy0 - init_debs[dj + 1];
+            double dz0 = sz0 - init_debs[dj + 2];
             if (dx0*dx0 + dy0*dy0 + dz0*dz0 > broad_radius * broad_radius)
                 continue;
 
@@ -169,9 +170,11 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
             double tca_coarse   = 0.0;
             int tca_step        = 0;
 
+            size_t ns6 = (size_t)ns * 6;
+            size_t nd6 = (size_t)nd * 6;
             for (int step = 0; step < n_frames; ++step) {
-                double* s = &sat_history[step * (ns * 6) + i * 6];
-                double* d = &deb_history[step * (nd * 6) + j * 6];
+                double* s = &sat_history[(size_t)step * ns6 + si];
+                double* d = &deb_history[(size_t)step * nd6 + dj];
                 double dx = s[0] - d[0], dy = s[1] - d[1], dz = s[2] - d[2];
                 double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
 

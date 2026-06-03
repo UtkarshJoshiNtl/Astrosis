@@ -341,9 +341,11 @@ def test_cpp_incremental_propagation():
 def test_backend_info_returns_dict():
     info = backend_info()
     assert isinstance(info, dict)
-    # backend_info returns presence flags: {cpp, cuda, numpy_batch, python}
-    # At minimum one backend must be available
-    assert any(info.values()), f"No backend is available: {info}"
+    assert 'cuda' in info, f"Missing 'cuda' key: {info}"
+    assert 'cpp' in info, f"Missing 'cpp' key: {info}"
+    assert 'numpy_batch' in info, f"Missing 'numpy_batch' key: {info}"
+    assert 'python' in info, f"Missing 'python' key: {info}"
+    assert info['python'] is True, "Python backend must always be available"
 
 
 def test_propagate_returns_six_elements():

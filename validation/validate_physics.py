@@ -145,7 +145,7 @@ def test_sgp4_comparison():
     try:
         from sgp4.api import Satrec, jday
         from datetime import datetime, timedelta
-        from engine.geo.analysis import _teme_to_eci
+        from engine.geo.frames import teme_to_eci
     except ImportError:
         print("  SKIP — sgp4 not installed\n")
         return True
@@ -165,7 +165,7 @@ def test_sgp4_comparison():
         print(f"  SGP4 error code {err} — SKIP\n")
         return True
 
-    r0_eci, v0_eci = _teme_to_eci(np.array(r0_teme), np.array(v0_teme), epoch_dt)
+    r0_eci, v0_eci = teme_to_eci(np.array(r0_teme), np.array(v0_teme), epoch_dt)
     state = list(r0_eci) + list(v0_eci)
     # TLE epoch: May 15, 2025 13:00:00 UTC (Modified Julian Date approx 60810.54)
     # We'll use a fixed MJD for this test to keep ephemeris deterministic
@@ -193,7 +193,7 @@ def test_sgp4_comparison():
                          step_dt.hour, step_dt.minute,
                          step_dt.second + step_dt.microsecond / 1e6)
         _, r_sgp4, v_sgp4 = satrec.sgp4(jd2, jdf2)
-        r_eci_ref, _ = _teme_to_eci(np.array(r_sgp4), np.array(v_sgp4), step_dt)
+        r_eci_ref, _ = teme_to_eci(np.array(r_sgp4), np.array(v_sgp4), step_dt)
         err_km = float(np.linalg.norm(np.array(curr[:3]) - r_eci_ref))
         times.append(t_s / 3600.0)
         errors.append(err_km)
