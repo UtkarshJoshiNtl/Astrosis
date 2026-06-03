@@ -21,7 +21,7 @@ from textual.widgets import (
     TabbedContent,
     TabPane,
 )
-from textual import work
+from textual import events, work
 from textual.binding import Binding
 from textual.worker import Worker, WorkerState
 
@@ -160,6 +160,7 @@ class AstrosisApp(App[None]):
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+e", "export", "Export"),
         Binding("f5", "refresh", "Refresh"),
+        Binding("escape", "cancel_operation", "Cancel", show=False),
         Binding("alt+1", "show_passes", "Passes", show=False),
         Binding("alt+2", "show_propagate", "Propagate", show=False),
         Binding("alt+3", "show_conjunction", "Conjunction", show=False),
@@ -172,6 +173,7 @@ class AstrosisApp(App[None]):
         super().__init__()
         self._active_tab = "passes"
         self._worker_running = False
+        self._current_worker: Worker | None = None
         self._spinner_idx = 0
         self._passes_data: list = []
         self._conjunction_data: list = []
@@ -242,32 +244,37 @@ class AstrosisApp(App[None]):
                             placeholder="Steps  [1440]",
                             value="1440",
                         )
-                        yield Static("── Drag / SRP ──", classes="section-label")
-                        yield Input(
-                            id="prop-area",
-                            placeholder="Area (m²)  [0]",
-                            value="0",
+                        yield Static(
+                            "── Drag/SRP ──  [+] ──",
+                            id="prop-toggle",
+                            classes="toggle-label",
                         )
-                        yield Input(
-                            id="prop-mass",
-                            placeholder="Mass (kg)  [1]",
-                            value="1",
-                        )
-                        yield Input(
-                            id="prop-cd",
-                            placeholder="Cd  [2.2]",
-                            value="2.2",
-                        )
-                        yield Input(
-                            id="prop-cr",
-                            placeholder="Cr  [1.5]",
-                            value="1.5",
-                        )
-                        yield Input(
-                            id="prop-mjd0",
-                            placeholder="MJD0  [0]",
-                            value="0",
-                        )
+                        with Vertical(id="prop-advanced"):
+                            yield Input(
+                                id="prop-area",
+                                placeholder="Area (m²)  [0]",
+                                value="0",
+                            )
+                            yield Input(
+                                id="prop-mass",
+                                placeholder="Mass (kg)  [1]",
+                                value="1",
+                            )
+                            yield Input(
+                                id="prop-cd",
+                                placeholder="Cd  [2.2]",
+                                value="2.2",
+                            )
+                            yield Input(
+                                id="prop-cr",
+                                placeholder="Cr  [1.5]",
+                                value="1.5",
+                            )
+                            yield Input(
+                                id="prop-mjd0",
+                                placeholder="MJD0  [0]",
+                                value="0",
+                            )
                     with TabPane("Conjunction", id="conjunction"):
                         yield Input(
                             id="conj-primary",
@@ -282,17 +289,22 @@ class AstrosisApp(App[None]):
                             placeholder="Lookahead (s)  [86400]",
                             value="86400",
                         )
-                        yield Static("── Advanced ──", classes="section-label")
-                        yield Input(
-                            id="conj-step",
-                            placeholder="Step (s)  [60]",
-                            value="60",
+                        yield Static(
+                            "── Advanced ──  [+] ──",
+                            id="conj-toggle",
+                            classes="toggle-label",
                         )
-                        yield Input(
-                            id="conj-mjd0",
-                            placeholder="MJD0  [0]",
-                            value="0",
-                        )
+                        with Vertical(id="conj-advanced"):
+                            yield Input(
+                                id="conj-step",
+                                placeholder="Step (s)  [60]",
+                                value="60",
+                            )
+                            yield Input(
+                                id="conj-mjd0",
+                                placeholder="MJD0  [0]",
+                                value="0",
+                            )
                     with TabPane("Info", id="info"):
                         yield Input(
                             id="info-norad",
@@ -373,6 +385,19 @@ class AstrosisApp(App[None]):
         for cls in self._MODE_CLASSES.values():
             panel.remove_class(cls)
         panel.add_class(self._MODE_CLASSES.get(mode, "mode-passes"))
+        first_inputs = {
+            "passes": "#passes-norad",
+            "propagate": "#prop-norad",
+            "conjunction": "#conj-primary",
+            "info": "#info-norad",
+            "ephemeris": "#eph-mjd",
+        }
+        fid = first_inputs.get(mode)
+        if fid:
+            try:
+                self.query_one(fid, Input).focus()
+            except Exception:
+                pass
 
     def _switch_tab(self, mode: str) -> None:
         tabs = self.query_one("#mode-tabs", TabbedContent)
@@ -396,6 +421,31 @@ class AstrosisApp(App[None]):
 
     def action_show_backend(self) -> None:
         self._switch_tab("backend")
+
+    def action_cancel_operation(self) -> None:
+        if self._worker_running and self._current_worker is not None:
+            self._current_worker.cancel()
+            self._set_status("[dim]Cancelled[/dim]")
+
+    def _toggle_advanced(self, section_id: str) -> None:
+        section = self.query_one(f"#{section_id}")
+        is_visible = section.display
+        section.display = not is_visible
+        expanded = not is_visible
+        toggle_id = "prop-toggle" if "prop" in section_id else "conj-toggle"
+        toggle = self.query_one(f"#{toggle_id}", Static)
+        base = "── Advanced ──" if "conj" in section_id else "── Drag/SRP ──"
+        indicator = "[−]" if expanded else "[+]"
+        toggle.update(f"{base}  {indicator} ──")
+
+    def on_click(self, event: events.Click) -> None:
+        widget = event.widget
+        if widget is not None:
+            sid = getattr(widget, "id", None) or ""
+            if sid == "prop-toggle":
+                self._toggle_advanced("prop-advanced")
+            elif sid == "conj-toggle":
+                self._toggle_advanced("conj-advanced")
 
     def _set_passes_columns(self, table: DataTable) -> None:
         table.clear(columns=True)
@@ -635,7 +685,9 @@ class AstrosisApp(App[None]):
         }
         self._set_worker_running(True)
         self._show_loading("Fetching TLE and propagating...")
-        self.run_passes_worker(norad_id, lat, lon, 0.0, hours, area, mass, cd)
+        self._current_worker = self.run_passes_worker(
+            norad_id, lat, lon, 0.0, hours, area, mass, cd
+        )
 
     @work(thread=True, exclusive=True)
     def run_passes_worker(
@@ -759,7 +811,7 @@ class AstrosisApp(App[None]):
         self._export_params.update({"dt": dt, "steps": steps, "with_drag": with_drag})
         self._set_worker_running(True)
         self._show_loading("Propagating...")
-        self.run_propagate_worker(
+        self._current_worker = self.run_propagate_worker(
             list(state), dt, steps, area, mass, cd, cr, with_drag, mjd0
         )
 
@@ -880,7 +932,7 @@ class AstrosisApp(App[None]):
         }
         self._set_worker_running(True)
         self._show_loading(f"Screening {len(sat_states)}×{len(deb_states)} pairs...")
-        self.run_conjunction_worker(
+        self._current_worker = self.run_conjunction_worker(
             sat_states, deb_states, lookahead, step_s, mjd0, sat_ids, deb_ids
         )
 
@@ -946,12 +998,18 @@ class AstrosisApp(App[None]):
             sev = w.severity.value
             counts[sev] = counts.get(sev, 0) + 1
         summary_parts = []
+        sev_styles = {
+            "CRITICAL": "[red]CRITICAL[/red]",
+            "WARNING": "[yellow]WARNING[/yellow]",
+            "ADVISORY": "[dim]ADVISORY[/dim]",
+            "NONE": "[dim]NONE[/dim]",
+        }
         for sev in ("CRITICAL", "WARNING", "ADVISORY", "NONE"):
             c = counts.get(sev, 0)
             if c > 0:
-                summary_parts.append(f"{sev}: {c}")
+                summary_parts.append(f"{sev_styles.get(sev, sev)}: {c}")
         summary = "  │  ".join(summary_parts) if summary_parts else "No events"
-        self._set_status(f"[dim]{summary}[/dim]")
+        self._set_status(summary)
 
     # ── Info mode ────────────────────────────────────────────────────────────
 
@@ -966,7 +1024,7 @@ class AstrosisApp(App[None]):
         self._export_params = {"norad_id": norad_id}
         self._set_worker_running(True)
         self._show_loading("Fetching satellite data...")
-        self.run_info_worker(norad_id)
+        self._current_worker = self.run_info_worker(norad_id)
 
     @work(thread=True, exclusive=True)
     def run_info_worker(self, norad_id: int) -> None:
@@ -1130,7 +1188,7 @@ class AstrosisApp(App[None]):
         self._export_params = {"mjd": mjd}
         self._set_worker_running(True)
         self._show_loading("Computing ephemeris...")
-        self.run_ephemeris_worker(mjd)
+        self._current_worker = self.run_ephemeris_worker(mjd)
 
     @work(thread=True, exclusive=True)
     def run_ephemeris_worker(self, mjd: float) -> None:
@@ -1174,7 +1232,7 @@ class AstrosisApp(App[None]):
     def _run_backend(self) -> None:
         self._set_worker_running(True)
         self._show_loading("Querying backends...")
-        self.run_backend_worker()
+        self._current_worker = self.run_backend_worker()
 
     @work(thread=True, exclusive=True)
     def run_backend_worker(self) -> None:

@@ -142,3 +142,29 @@ Footer {
     color: #555555;
     margin-bottom: 1;
 }
+
+.toggle-label {
+    color: #555555;
+    margin-bottom: 1;
+}
+
+.toggle-label:hover {
+    color: #888888;
+    text-style: bold;
+}
+
+#prop-advanced {
+    display: none;
+}
+
+#prop-advanced.visible {
+    display: block;
+}
+
+#conj-advanced {
+    display: none;
+}
+
+#conj-advanced.visible {
+    display: block;
+}
