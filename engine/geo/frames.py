@@ -142,33 +142,14 @@ def ecef_to_geodetic(r_ecef: np.ndarray) -> tuple:
     lon = np.arctan2(y, x)
     p = np.sqrt(x**2 + y**2)
 
-    # --- Pole singularity guard ---
-    # When p ≈ 0 (at or very near a geographic pole), cos(lat) → 0
-    # which causes alt = p / cos(lat) to blow up to nan/inf.
-    if np.ndim(p) == 0:
-        if p < 1e-10:
-            b = RE * (1 - F_WGS84)
-            lat = np.pi / 2 if z >= 0 else -np.pi / 2
-            alt = float(np.abs(z)) - b
-    # Vectorized pole fixup: points with p ≈ 0 produce wrong altitude from Bowring
-    if np.ndim(p) > 0:
-        pole = p < 1e-10
-        if np.any(pole):
-            b = RE * (1 - F_WGS84)
-            lat = np.where(pole, np.where(z >= 0, np.pi / 2, -np.pi / 2), lat)
-            alt = np.where(pole, np.abs(z) - b, alt)
-
-    return lat, lon, alt
-
-    lat = np.arctan2(z, p * (1 - E2_WGS84))  # Initial approximation
+    # Bowring iteration (initialise lat first)
+    lat = np.arctan2(z, p * (1 - E2_WGS84))
     N = RE
 
-    # Iterate (Bowring, 5 iterations sufficient for mm-level accuracy)
     for _ in range(5):
         sin_lat = np.sin(lat)
         N = RE / np.sqrt(1 - E2_WGS84 * sin_lat**2)
         cos_lat = np.cos(lat)
-        # Guard against cos_lat = 0 for vectorised arrays near poles
         safe_cos = (
             np.where(np.abs(cos_lat) < 1e-12, 1e-12, cos_lat)
             if np.ndim(cos_lat) > 0
@@ -177,9 +158,18 @@ def ecef_to_geodetic(r_ecef: np.ndarray) -> tuple:
         alt = p / safe_cos - N
         lat = np.arctan2(z, p * (1 - E2_WGS84 * N / (N + alt)))
 
-    # Vectorized pole fixup: points with p ≈ 0 produce wrong altitude from Bowring
-    if np.ndim(p) > 0:
+    # Pole singularity fixup — p ≈ 0 makes Bowring altitude unreliable
+    if np.ndim(p) == 0:
+        if p < 1e-10:
+            b = RE * (1 - F_WGS84)
+            lat = np.pi / 2 if z >= 0 else -np.pi / 2
+            alt = float(np.abs(z)) - b
+    else:
         pole = p < 1e-10
+        if np.any(pole):
+            b = RE * (1 - F_WGS84)
+            lat = np.where(pole, np.where(z >= 0, np.pi / 2, -np.pi / 2), lat)
+            alt = np.where(pole, np.abs(z) - b, alt)
 
     return lat, lon, alt
 
@@ -199,7 +189,7 @@ def topocentric_aer(
     r_sat_ecef: np.ndarray, lat_rad: float, lon_rad: float, alt_km: float
 ) -> tuple:
     """
-    Compute Azimuth (rad), Elevation (rad), and Range (km) for an ECEF satellite position
+    Compute Azimuth, Elevation, Range for an ECEF satellite position
     relative to a specific topocentric observer.
     """
     r_obs = geodetic_to_ecef(lat_rad, lon_rad, alt_km)

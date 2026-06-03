@@ -6,16 +6,41 @@ Screen {
     height: 1;
     background: #111111;
     color: #666666;
+    padding: 0 1;
 }
 
 #input-panel {
-    width: 35;
+    width: 38;
     border: solid #222222;
-    padding: 1 2;
+    padding: 0 1;
 }
 
-.prop-input, .conj-input {
-    display: none;
+TabbedContent {
+    margin-bottom: 1;
+}
+
+TabbedContent > Tabs {
+    background: #111111;
+}
+
+TabbedContent > Tabs > Tab {
+    background: #111111;
+    color: #555555;
+    padding: 0 1;
+}
+
+TabbedContent > Tabs > Tab:hover {
+    background: #1a1a1a;
+    color: #888888;
+}
+
+TabbedContent > Tabs > Tab.-active-tab {
+    background: #1a2a3a;
+    color: #58a6ff;
+}
+
+TabbedContent > TabPane {
+    padding: 0;
 }
 
 Input {
@@ -45,10 +70,22 @@ Button:hover {
     background: #0d1a0d;
 }
 
+Button:disabled {
+    color: #444444;
+    border: solid #333333;
+    background: #111111;
+}
+
 Button.--primary {
     background: #0d1a0d;
     border: solid #58a6ff;
     color: #58a6ff;
+}
+
+#status-line {
+    height: 1;
+    color: #555555;
+    margin-bottom: 0;
 }
 
 DataTable {
@@ -58,7 +95,7 @@ DataTable {
 
 DataTable > .datatable--header {
     background: #111111;
-    color: #444444;
+    color: #555555;
 }
 
 DataTable > .datatable--cursor {
@@ -76,24 +113,32 @@ Footer {
     height: 100%;
 }
 
+#results-panel.mode-passes  { border-left: solid #3fb950; }
+#results-panel.mode-propagate { border-left: solid #58a6ff; }
+#results-panel.mode-conjunction { border-left: solid #d29922; }
+#results-panel.mode-info { border-left: solid #79c0ff; }
+#results-panel.mode-ephemeris { border-left: solid #bc8cff; }
+#results-panel.mode-backend { border-left: solid #8b5cf6; }
+
 #detail-strip {
-    height: 3;
+    height: 1;
     border-top: solid #222222;
     padding: 0 2;
     color: #888888;
 }
 
-#mode-label {
-    color: #555555;
-    margin-bottom: 1;
-}
-
-#propagate-result {
+#text-result {
     background: #0d0d0d;
     color: #e6edf3;
     padding: 1 2;
+    overflow-y: auto;
 }
 
 .hidden {
     display: none;
+}
+
+.section-label {
+    color: #555555;
+    margin-bottom: 1;
 }
