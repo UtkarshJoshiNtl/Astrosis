@@ -45,5 +45,8 @@ coverage/
 # Graphify output
 graphify-out/
 
+# Regeneratable demo recording
+assets/demo.cast
+
 # Windows ADS zone identifiers
 *:Zone.Identifier
