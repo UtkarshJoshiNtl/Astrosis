@@ -5,9 +5,8 @@ pass prediction, and ephemeris. Auto-selects CUDA → C++/OpenMP → NumPy → P
 
 [![CI](https://img.shields.io/github/actions/workflow/status/UtkarshJoshiNtl/Astrosis/ci.yml?branch=main&label=CI&logo=github)](https://github.com/UtkarshJoshiNtl/Astrosis/actions)
 [![License MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-linux%20|%20macOS%20|%20windows-lightgrey)](https://pypi.org/project/astrosis/)
 
-![TUI demo](assets/tui-demo.gif)
+![TUI demo](assets/demo.gif)
 
 <details>
 <summary><b>Table of Contents</b></summary>
