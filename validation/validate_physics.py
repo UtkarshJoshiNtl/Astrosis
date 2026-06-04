@@ -27,8 +27,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from engine.core.propagator import rk4_step
-from engine.constants import MU, RE, J2, MU_SUN, MU_MOON
+from astrosis.core.propagator import rk4_step
+from astrosis.constants import MU, RE, J2, MU_SUN, MU_MOON
 
 # Try to import C++ backend for parity checks
 try:
@@ -145,7 +145,7 @@ def test_sgp4_comparison():
     try:
         from sgp4.api import Satrec, jday
         from datetime import datetime, timedelta
-        from engine.geo.frames import teme_to_eci
+        from astrosis.geo.frames import teme_to_eci
     except ImportError:
         print("  SKIP — sgp4 not installed\n")
         return True

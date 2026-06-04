@@ -48,8 +48,8 @@ try:
 except ImportError:
     _cpp = None; HAS_CPP = False; HAS_CUDA = False; HAS_BATCH = False
 
-from engine.core.propagator import propagate_batch_numpy
-from engine.constants import RE
+from astrosis.core.propagator import propagate_batch_numpy
+from astrosis.constants import RE
 
 DT    = 10.0   # step size [s]
 STEPS = 100    # integration steps per measurement

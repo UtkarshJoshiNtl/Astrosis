@@ -19,10 +19,10 @@ from sgp4.api import Satrec, jday
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from engine.constants import MU, RE
-from engine.core.accelerator import backend_info, propagate_batch
-from engine.io.data import tle_ingestor
-from engine.geo.frames import eci_to_ecef, topocentric_aer
+from astrosis.constants import MU, RE
+from astrosis.core.accelerator import backend_info, propagate_batch
+from astrosis.io.data import tle_ingestor
+from astrosis.geo.frames import eci_to_ecef, topocentric_aer
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger("astrosis-server")

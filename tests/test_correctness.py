@@ -19,8 +19,8 @@ import types
 import pytest
 import numpy as np
 
-from engine.core.propagator import rk4_step
-from engine.constants import (
+from astrosis.core.propagator import rk4_step
+from astrosis.constants import (
     MU,
     RE,
     J2,
@@ -28,7 +28,7 @@ from engine.constants import (
     WARNING_DISTANCE,
     ADVISORY_DISTANCE,
 )
-from engine.core.accelerator import (
+from astrosis.core.accelerator import (
     propagate,
     propagate_batch,
     detect_conjunctions,
@@ -217,7 +217,7 @@ def test_python_conjunction_scans_partial_final_window(monkeypatch):
     The Python detector must scan the partial final interval when lookahead_s is
     not an exact multiple of step_s.
     """
-    from engine.core import conjunction as conjunction_mod
+    from astrosis.core import conjunction as conjunction_mod
 
     def linear_history(states, dt_seconds, steps, **_kwargs):
         history = []
@@ -262,7 +262,7 @@ def test_python_conjunction_scans_partial_final_window(monkeypatch):
             state[5],
         )
 
-    import engine.core.accelerator as accelerator_mod
+    import astrosis.core.accelerator as accelerator_mod
 
     monkeypatch.setattr(accelerator_mod, "propagate_batch_full_history", linear_history)
     monkeypatch.setattr(conjunction_mod, "propagate_batch_numpy", linear_batch)
@@ -366,8 +366,8 @@ def test_mock_gpu_disables_cuda():
     code = (
         "import os, math\n"
         "os.environ['ASTROSIS_MOCK_GPU'] = '1'\n"
-        "from engine.core.accelerator import backend_info, propagate\n"
-        "from engine.constants import MU, RE\n"
+        "from astrosis.core.accelerator import backend_info, propagate\n"
+        "from astrosis.constants import MU, RE\n"
         "info = backend_info()\n"
         "assert info['cuda'] is False, f'CUDA should be disabled: {info}'\n"
         "state = [RE + 400.0, 0.0, 0.0, 0.0, math.sqrt(MU / (RE + 400.0)), 0.0]\n"
@@ -390,8 +390,8 @@ def test_mock_gpu_disables_cuda():
 def test_engine_core_import_is_lazy():
     code = (
         "import sys\n"
-        "import engine.core\n"
-        "print('engine.core.accelerator' in sys.modules)\n"
+        "import astrosis.core\n"
+        "print('astrosis.core.accelerator' in sys.modules)\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", code],
@@ -404,7 +404,7 @@ def test_engine_core_import_is_lazy():
 
 
 def test_report_passes_converts_teme_initial_state(monkeypatch):
-    from engine.geo import analysis
+    from astrosis.geo import analysis
 
     calls = []
 
@@ -505,7 +505,7 @@ def test_two_body_analytic_match():
     over one orbit. For a circular equatorial orbit, J2 causes RAAN precession
     but does NOT change the radial distance. Check that r stays constant.
     """
-    from engine.constants import MU
+    from astrosis.constants import MU
 
     r0 = RE + 400.0
     v0 = math.sqrt(MU / r0)

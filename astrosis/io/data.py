@@ -4,13 +4,12 @@ from typing import List, Optional
 import logging
 import os
 import pathlib
+from importlib.resources import files as _pkg_files
 
 logger = logging.getLogger(__name__)
 
 LOCAL_CACHE_DIR = str(pathlib.Path.home() / ".cache" / "astrosis" / "tle")
-BUNDLED_CACHE = str(
-    pathlib.Path(__file__).resolve().parent.parent.parent / "data" / "active.txt"
-)
+BUNDLED_CACHE = str(_pkg_files("astrosis.data").joinpath("active.txt"))
 CELESTRAK_API_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 SPACETRACK_TLE_URL = (

@@ -25,9 +25,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from sgp4.api import Satrec, jday
-from engine.core.propagator import rk4_step
-from engine.geo.frames import teme_to_eci
-from engine.constants import RE
+from astrosis.core.propagator import rk4_step
+from astrosis.geo.frames import teme_to_eci
+from astrosis.constants import RE
 
 # ISS TLE (May 2025)
 ISS_LINE1 = "1 25544U 98067A   25135.54166667  .00007700  00000+0  14217-3 0  9994"
