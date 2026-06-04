@@ -1,6 +1,6 @@
 from importlib import import_module
 
-from .constants import (
+from .constants import (  # noqa: F401
     MU, RE, J2, J3, J4, OMEGA_EARTH, MU_SUN, MU_MOON,
     F_WGS84, E2_WGS84, CRITICAL_DISTANCE, WARNING_DISTANCE,
     ADVISORY_DISTANCE, RS_SUN, AU, P_SR,

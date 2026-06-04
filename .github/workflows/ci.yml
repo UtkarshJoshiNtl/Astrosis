@@ -27,6 +27,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
+      - run: pip install -e .
       - run: pip install pytest
       - run: pytest tests/ -v
 
@@ -36,5 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: pip install pybind11
       - run: sudo apt-get update && sudo apt-get install -y cmake build-essential
-      - run: cmake -S cpp -B cpp/build -DUSE_CUDA=OFF
+      - name: Get pybind11 cmake dir
+        run: echo "pybind11_DIR=$(python -c 'import pybind11; print(pybind11.get_cmake_dir())')" >> $GITHUB_ENV
+      - run: cmake -S cpp -B cpp/build -DUSE_CUDA=OFF -Dpybind11_DIR=${{ env.pybind11_DIR }}
       - run: cmake --build cpp/build -- -j$(nproc)

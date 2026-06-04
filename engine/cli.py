@@ -72,7 +72,8 @@ def _load_csv(path: str) -> tuple:
         console.print(
             Panel(
                 f"[red]Could not parse CSV at {path}[/red]\n"
-                f"Expected columns: [bold]id,x,y,z,vx,vy,vz[/bold] or [bold]x,y,z,vx,vy,vz[/bold]\n"
+                "[bold]Expected columns: id,x,y,z,vx,vy,vz[/bold]"
+                " or [bold]x,y,z,vx,vy,vz[/bold]\n"
                 f"[dim]{e}[/dim]",
                 title="CSV Error",
             )
@@ -112,7 +113,8 @@ def _tle_to_state(norad_id: int, start_dt=None) -> list:
     if err != 0:
         console.print(
             Panel(
-                f"[red]SGP4 propagation error (code {err}) for NORAD ID {norad_id}[/red]",
+                f"[red]SGP4 propagation error (code {err})"
+                f" for NORAD ID {norad_id}[/red]",
                 title="Error",
             )
         )
@@ -147,7 +149,8 @@ def _fetch(args):
         sys.exit(1)
     if args.id:
         console.print(
-            f"[green]✓[/green] Found {len(sats)} TLE entry for NORAD ID [bold]{args.id}[/bold]"
+            f"[green]✓[/green] Found {len(sats)} TLE entry"
+            f" for NORAD ID [bold]{args.id}[/bold]"
         )
     else:
         console.print(f"[green]✓[/green] Fetched and cached {len(sats)} TLE entries")
@@ -189,7 +192,8 @@ def _passes(args):
     else:
         console.print(
             Panel(
-                "[yellow]Specify a location with --city <name> or --lat/--lon.[/yellow]\n"
+                "[yellow]Specify a location with"
+                " --city <name> or --lat/--lon.[/yellow]\n"
                 "Examples:\n"
                 "  astrosis passes --city Mumbai --id 25544\n"
                 "  astrosis passes --lat 19.076 --lon 72.8777 --id 25544",
@@ -293,7 +297,8 @@ def _backend(args):
     )
 
     lines = [
-        f"[{active_color}]Active backend: [bold]{active.upper()}[/bold][/{active_color}]",
+        f"[{active_color}]Active backend:"
+        f" [bold]{active.upper()}[/bold][/{active_color}]",
         f"  {cuda_status} CUDA",
         f"  {cpp_status} C++ / OpenMP",
         f"  {numpy_status} NumPy batch",
@@ -374,7 +379,8 @@ def _info(args):
     if err != 0:
         console.print(
             Panel(
-                f"[red]SGP4 propagation error (code {err}) for NORAD ID {args.id}[/red]",
+                f"[red]SGP4 propagation error (code {err})"
+                f" for NORAD ID {args.id}[/red]",
                 title="Error",
             )
         )
@@ -418,9 +424,11 @@ def _info(args):
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
     lon_dir = "E" if lon_deg >= 0 else "W"
     state_text = (
-        f"[bold]Position:[/bold] [{r_eci[0]:.3f}, {r_eci[1]:.3f}, {r_eci[2]:.3f}] km\n"
+        f"[bold]Position:[/bold]"
+        f" [{r_eci[0]:.3f}, {r_eci[1]:.3f}, {r_eci[2]:.3f}] km\n"
         f"[bold]Velocity:[/bold] [{v_eci[0]:.6f}, {v_eci[1]:.6f}, {v_eci[2]:.6f}] km/s\n"
-        f"[bold]Altitude:[/bold] {altitude:.1f} km\n"
+        f"[bold]Altitude:[/bold]"
+        f" {altitude:.1f} km\n"
         f"[bold]Ground Track:[/bold] {abs(lat_deg):.4f}°{'N' if lat_deg >= 0 else 'S'}, "
         f"{abs(lon_deg):.4f}°{lon_dir}\n"
         f"[dim]As of {now_str} UTC[/dim]"
@@ -501,7 +509,8 @@ def _propagate(args):
         table.add_row("Velocity Z", f"{result[5]:.6f}", "km/s")
         table.add_row("Altitude", f"{altitude:.3f}", "km")
         console.print(
-            f"[bold]Propagated after {steps} steps (dt={dt:.1f}s, {total / 3600:.2f}h)[/bold]"
+            f"[bold]Propagated after {steps} steps"
+            f" (dt={dt:.1f}s, {total / 3600:.2f}h)[/bold]"
         )
         console.print(table)
         console.print(f"[dim]Backend: {info['description']}[/dim]")

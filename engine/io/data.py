@@ -13,7 +13,10 @@ BUNDLED_CACHE = str(
 )
 CELESTRAK_API_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
-SPACETRACK_TLE_URL = "https://www.space-track.org/basicspaceradar/query/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle"
+SPACETRACK_TLE_URL = (
+    "https://www.space-track.org/basicspaceradar/query"
+    "/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle"
+)
 # TODO: update this after 2056 lol
 EPOCH_YEAR_CUTOFF = 57
 
