@@ -72,7 +72,7 @@ to measure reliably). C++ beats CUDA at every tested size for batch
 propagation. CUDA's advantage is in conjunction screening, not batch
 propagation.
 
-See [crossover plot](../validation/plots/7_cuda_crossover.png).
+![cuda_crossover](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/7_cuda_crossover.png)
 
 ## Conjunction Scaling
 
@@ -126,7 +126,7 @@ for RTX 2050 (364 GFLOP/s peak FP64, 350 GB/s bandwidth) is 1.04 FLOP/byte.
 Since AI > ridge point, the kernel is **compute-bound** — performance is
 limited by FPU throughput, not memory access.
 
-See [roofline plot](../validation/plots/8_roofline.png).
+![roofline](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/8_roofline.png)
 
 ## Running Benchmarks
 

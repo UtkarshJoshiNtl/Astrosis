@@ -1,7 +1,9 @@
 # Physics Validation
 
-Quantitative validation results for Astrosis propagation. All plots saved to
+Quantitative validation results for Astrosis propagation. All plots in
 `validation/plots/`.
+
+> Images render from GitHub raw URLs. Regenerate locally with the validation scripts.
 
 ## 1. Energy Conservation
 
@@ -17,7 +19,7 @@ Relative error:               ΔE/E = 9.1 × 10⁻⁹
 Expected accuracy (RK4 O(dt⁴)): 1 × 10⁻⁷ relative. Measured: 9.1 × 10⁻⁹
 (better than theoretical bound — error cancellation from many satellites).
 
-**Plot:** [1_energy_conservation.png](../validation/plots/1_energy_conservation.png)
+![1_energy_conservation](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/1_energy_conservation.png)
 
 ## 2. ISS Validation vs. SGP4
 
@@ -37,7 +39,7 @@ This is NOT a validation against truth — both methods approximate. Error growt
 is expected from TLE uncertainty (0.1–1 km inherent). The test confirms the
 perturbation model behaves reasonably and integration remains stable.
 
-**Plot:** [2_sgp4_comparison.png](../validation/plots/2_sgp4_comparison.png)
+![2_sgp4_comparison](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/2_sgp4_comparison.png)
 
 ## 3. J2 Nodal Regression (Analytical Verification)
 
@@ -51,7 +53,7 @@ RK4 (dt=10s): -3.11 °/day
 Error:        +0.96%
 ```
 
-**Plot:** [3_raan_precession.png](../validation/plots/3_raan_precession.png)
+![3_raan_precession](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/3_raan_precession.png)
 
 ## 4. RK4 Convergence Verification
 
@@ -66,7 +68,7 @@ Error:        +0.96%
 
 Error ratio ≈ 16 confirms **4th-order accuracy** (2⁴ = 16).
 
-**Plot:** [4_rk4_convergence.png](../validation/plots/4_rk4_convergence.png)
+![4_rk4_convergence](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/4_rk4_convergence.png)
 
 ## 5. Solar Radiation Pressure
 
@@ -82,7 +84,7 @@ Ratio:                   50.0 (exact match)
 - Low-mass: 1.9 km tangential displacement
 - High-mass: 38 m tangential displacement
 
-**Plot:** [5_srp_divergence.png](../validation/plots/5_srp_divergence.png)
+![5_srp_divergence](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/5_srp_divergence.png)
 
 ## 6. Atmospheric Drag
 
