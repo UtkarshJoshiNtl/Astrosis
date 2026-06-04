@@ -15,9 +15,9 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install flake8 black mypy
-      - run: flake8 engine/
-      - run: black --check engine/
-      - run: mypy engine/ --ignore-missing-imports || true
+      - run: flake8 astrosis/
+      - run: black --check astrosis/
+      - run: mypy astrosis/ --ignore-missing-imports || true
 
   test:
     runs-on: ubuntu-latest
@@ -41,3 +41,14 @@ jobs:
         run: echo "pybind11_DIR=$(python -c 'import pybind11; print(pybind11.get_cmake_dir())')" >> $GITHUB_ENV
       - run: cmake -S cpp -B cpp/build -DUSE_CUDA=OFF -Dpybind11_DIR=${{ env.pybind11_DIR }}
       - run: cmake --build cpp/build -- -j$(nproc)
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install build twine
+      - run: python -m build
+      - run: python -m twine check dist/*

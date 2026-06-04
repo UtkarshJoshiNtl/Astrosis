@@ -20,10 +20,10 @@ from textual import events, work
 from textual.binding import Binding
 from textual.worker import Worker, WorkerState
 
-from engine.core.accelerator import backend_info, propagate_steps, detect_conjunctions
-from engine.core.ephemeris import sun_position_eci, moon_position_eci
-from engine.geo.cities import CITIES, resolve_location
-from engine.constants import RE
+from astrosis.core.accelerator import backend_info, propagate_steps, detect_conjunctions
+from astrosis.core.ephemeris import sun_position_eci, moon_position_eci
+from astrosis.geo.cities import CITIES, resolve_location
+from astrosis.constants import RE
 
 _STATE_FILE = Path.home() / ".cache" / "astrosis" / "tui_state.json"
 
@@ -71,7 +71,7 @@ def _load_csv_safe(path: str) -> tuple | str:
 
 def _tle_to_state_safe(norad_id: int) -> list | str:
     try:
-        from engine.io.data import tle_ingestor
+        from astrosis.io.data import tle_ingestor
 
         sats = tle_ingestor.get_satellites(
             satellite_id=str(norad_id), force_refresh=False
@@ -80,7 +80,7 @@ def _tle_to_state_safe(norad_id: int) -> list | str:
             return f"Satellite {norad_id} not found in TLE cache."
         from sgp4.api import Satrec, jday
         import numpy as np
-        from engine.geo.frames import teme_to_eci
+        from astrosis.geo.frames import teme_to_eci
 
         tle = sats[0]
         satrec = Satrec.twoline2rv(tle["line1"], tle["line2"])
@@ -104,7 +104,7 @@ def _tle_to_state_safe(norad_id: int) -> list | str:
 
 def _tle_get_satrec(norad_id: int) -> tuple | str:
     try:
-        from engine.io.data import tle_ingestor
+        from astrosis.io.data import tle_ingestor
         from sgp4.api import Satrec
 
         sats = tle_ingestor.get_satellites(
@@ -557,12 +557,27 @@ class AstrosisApp(App[None]):
 
     def _input_widgets(self) -> list[Input]:
         ids = [
-            "passes-norad", "passes-city", "passes-hours", "passes-min-el",
-            "passes-area", "passes-mass", "passes-cd",
-            "prop-norad", "prop-state", "prop-dt", "prop-steps",
-            "prop-area", "prop-mass", "prop-cd", "prop-cr", "prop-mjd0",
-            "conj-primary", "conj-secondary", "conj-lookahead",
-            "conj-step", "conj-mjd0",
+            "passes-norad",
+            "passes-city",
+            "passes-hours",
+            "passes-min-el",
+            "passes-area",
+            "passes-mass",
+            "passes-cd",
+            "prop-norad",
+            "prop-state",
+            "prop-dt",
+            "prop-steps",
+            "prop-area",
+            "prop-mass",
+            "prop-cd",
+            "prop-cr",
+            "prop-mjd0",
+            "conj-primary",
+            "conj-secondary",
+            "conj-lookahead",
+            "conj-step",
+            "conj-mjd0",
             "info-norad",
             "eph-mjd",
         ]
@@ -792,7 +807,7 @@ class AstrosisApp(App[None]):
         cd: float,
         min_el: float = 10.0,
     ) -> None:
-        from engine.geo.analysis import report_passes
+        from astrosis.geo.analysis import report_passes
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         result = report_passes(
@@ -1121,12 +1136,12 @@ class AstrosisApp(App[None]):
     @work(thread=True, exclusive=True)
     def run_info_worker(self, norad_id: int) -> None:
         import numpy as np
-        from engine.geo.frames import (
+        from astrosis.geo.frames import (
             teme_to_eci,
             eci_to_ecef,
             ecef_to_geodetic,
         )
-        from engine.constants import MU
+        from astrosis.constants import MU
         from sgp4.api import jday
 
         tle_or_err = _tle_get_satrec(norad_id)
@@ -1272,7 +1287,7 @@ class AstrosisApp(App[None]):
                 self._show_error(f"Invalid MJD: {mjd_str}")
                 return
         else:
-            from engine.geo.frames import julian_date
+            from astrosis.geo.frames import julian_date
 
             now = datetime.now(timezone.utc)
             mjd = julian_date(now) - 2400000.5

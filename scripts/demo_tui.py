@@ -34,7 +34,7 @@ def main():
     if pid == 0:
         os.execve(
             ".venv/bin/python",
-            [".venv/bin/python", "-m", "engine"],
+            ["./venv/bin/python", "-m", "astrosis"],
             env,
         )
         sys.exit(1)

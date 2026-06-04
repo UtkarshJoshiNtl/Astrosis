@@ -63,27 +63,27 @@ astrosis info --id 25544
 Use Astrosis as a library in your own scripts:
 
 ```python
-import engine
+import astrosis
 
 # Propagate a single satellite 24 hours forward
-state = engine.propagate(
+state = astrosis.propagate(
     [6678, 0, 0, 0, 7.7, 0],  # ECI: x, y, z, vx, vy, vz (km, km/s)
     dt_seconds=86400
 )
 print(f"After 24 h: {state}")
 
 # Batch propagate 1,000 satellites — auto-picks fastest backend
-states = engine.propagate_batch(
+states = astrosis.propagate_batch(
     initial_states, dt_seconds=60, steps=1440
 )
 
 # Conjunction screening
-warnings = engine.detect_conjunctions(
+warnings = astrosis.detect_conjunctions(
     satellites, debris, lookahead=86400, step_s=60
 )
 
 # Check which backend is active
-print(engine.backend_info())
+print(astrosis.backend_info())
 ```
 
 ## Features
@@ -105,8 +105,8 @@ graph TB
     subgraph UI["User Interface"]
         direction LR
         CLI["main.py / CLI"]
-        TUI["engine/tui.py<br/>Textual 8.x"]
-        API["engine.*<br/>Python API"]
+        TUI["astrosis/tui.py<br/>Textual 8.x"]
+        API["astrosis.*<br/>Python API"]
     end
 
     subgraph CORE["Physics Core"]
@@ -143,7 +143,7 @@ graph TB
     CITIES --> PASS
 ```
 
-The router in `engine/core/accelerator.py` probes `cuda_available()`, C++ module
+The router in `astrosis/core/accelerator.py` probes `cuda_available()`, C++ module
 presence, and falls back through the layers — all transparent to the caller.
 
 ## Performance

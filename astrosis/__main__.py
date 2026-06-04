@@ -1,4 +1,4 @@
-from engine.cli import main
+from astrosis.cli import main
 
 if __name__ == "__main__":
     main()

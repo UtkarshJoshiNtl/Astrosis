@@ -1,7 +1,5 @@
 include README.md
 include LICENSE
-include requirements.txt
-recursive-include engine *.py
-recursive-include engine *.pyi
-recursive-include data *
-recursive-include assets *
+recursive-include astrosis *.py
+recursive-include astrosis *.pyi
+recursive-include astrosis/data *.txt

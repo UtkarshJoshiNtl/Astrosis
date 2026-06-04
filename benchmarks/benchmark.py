@@ -33,10 +33,10 @@ logging.basicConfig(level=logging.WARNING)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'cpp', 'build')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from engine.core.propagator import rk4_step, rk4_batch, propagate_batch_numpy
-from engine.core.conjunction import ConjunctionDetector as PyDetector
-from engine.core.conjunction import ConjunctionWarning
-from engine.constants import MU, RE
+from astrosis.core.propagator import rk4_step, rk4_batch, propagate_batch_numpy
+from astrosis.core.conjunction import ConjunctionDetector as PyDetector
+from astrosis.core.conjunction import ConjunctionWarning
+from astrosis.constants import MU, RE
 import numpy as np
 
 try:
