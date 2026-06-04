@@ -39,9 +39,9 @@ dev = ["pytest", "black", "flake8", "mypy"]
 astrosis = "engine.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/UtkarshJoshiNtl/astrosis"
-Repository = "https://github.com/UtkarshJoshiNtl/astrosis"
-Issues = "https://github.com/UtkarshJoshiNtl/astrosis/issues"
+Homepage = "https://github.com/UtkarshJoshiNtl/Astrosis"
+Repository = "https://github.com/UtkarshJoshiNtl/Astrosis"
+Issues = "https://github.com/UtkarshJoshiNtl/Astrosis/issues"
 
 [tool.setuptools.packages.find]
 include = ["engine*"]

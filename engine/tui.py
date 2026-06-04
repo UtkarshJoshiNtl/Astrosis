@@ -1,9 +1,3 @@
-"""
-engine/tui.py — Astrosis Terminal UI (Textual)
-"""
-
-from __future__ import annotations
-
 import csv
 import json
 import math
@@ -33,7 +27,7 @@ from engine.constants import RE
 
 _STATE_FILE = Path.home() / ".cache" / "astrosis" / "tui_state.json"
 
-# ── Safe helpers ─────────────────────────────────────────────────────────────
+# helpers
 
 
 def _parse_state(arg: str) -> list | None:
@@ -153,7 +147,7 @@ def _format_time(dt: datetime) -> str:
     return dt.strftime("%m-%d %H:%M:%S")
 
 
-# ── Help overlay ──────────────────────────────────────────────────────────────
+# help overlay
 
 
 class HelpScreen(Screen[None]):
@@ -185,7 +179,7 @@ class HelpScreen(Screen[None]):
         )
 
 
-# ── App ─────────────────────────────────────────────────────────────────────
+# app
 
 
 class AstrosisApp(App[None]):
@@ -222,7 +216,7 @@ class AstrosisApp(App[None]):
         self._propagate_dt = 0.0
         self._export_params: dict = {}
 
-    # ── Compose ──────────────────────────────────────────────────────────
+    # compose
 
     def compose(self) -> ComposeResult:
         yield Static(id="app-header")
@@ -368,7 +362,7 @@ class AstrosisApp(App[None]):
                 yield Static(id="detail-strip")
         yield Footer()
 
-    # ── Mount ────────────────────────────────────────────────────────────────
+    # mount
 
     def on_mount(self) -> None:
         self.title = "ASTROSIS"
@@ -394,7 +388,7 @@ class AstrosisApp(App[None]):
             utc_str += f"  {self._spinner_frames[self._spinner_idx]}"
         header.update(f"ASTROSIS  │  {mode_name}  │  {backend}  │  {utc_str} UTC")
 
-    # ── Mode switching ───────────────────────────────────────────────────────
+    # mode switching
 
     def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
@@ -559,7 +553,7 @@ class AstrosisApp(App[None]):
             btn.disabled = False
             self._update_button_for_mode(self._active_tab)
 
-    # ── Persistence ─────────────────────────────────────────────────────────
+    # persistence
 
     def _input_widgets(self) -> list[Input]:
         ids = [
@@ -599,7 +593,7 @@ class AstrosisApp(App[None]):
         except Exception:
             pass
 
-    # ── Input validation ─────────────────────────────────────────────────────
+    # input validation
 
     def _flash_input(self, input_widget: Input) -> None:
         input_widget.add_class("input-error")
@@ -677,7 +671,7 @@ class AstrosisApp(App[None]):
     def _validate_ephemeris(self) -> bool:
         return True  # MJD can be blank (use current time)
 
-    # ── Run dispatch ─────────────────────────────────────────────────────────
+    # run dispatch
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         if event.state in (
@@ -718,7 +712,7 @@ class AstrosisApp(App[None]):
         elif self._active_tab == "backend":
             self._run_backend()
 
-    # ── Passes mode ──────────────────────────────────────────────────────────
+    # passes mode
 
     def _run_passes(self) -> None:
         norad_str = self.query_one("#passes-norad", Input).value.strip()
@@ -855,7 +849,7 @@ class AstrosisApp(App[None]):
             )
         self._set_status(f"[dim]Found {len(passes)} passes[/dim]")
 
-    # ── Propagate mode ───────────────────────────────────────────────────────
+    # propagate mode
 
     def _run_propagate(self) -> None:
         pid_str = self.query_one("#prop-norad", Input).value.strip()
@@ -991,7 +985,7 @@ class AstrosisApp(App[None]):
         text_result.update("\n".join(lines))
         self._set_status(f"[dim]Propagated {steps} steps ({drag_label})[/dim]")
 
-    # ── Conjunction mode ─────────────────────────────────────────────────────
+    # conjunction mode
 
     def _run_conjunction(self) -> None:
         primary = self.query_one("#conj-primary", Input).value.strip()
@@ -1109,7 +1103,7 @@ class AstrosisApp(App[None]):
         summary = "  │  ".join(summary_parts) if summary_parts else "No events"
         self._set_status(summary)
 
-    # ── Info mode ────────────────────────────────────────────────────────────
+    # info mode
 
     def _run_info(self) -> None:
         norad_str = self.query_one("#info-norad", Input).value.strip()
@@ -1267,7 +1261,7 @@ class AstrosisApp(App[None]):
         text_result.update("\n".join(lines))
         self._set_status(f"[dim]Satellite {norad_id} loaded[/dim]")
 
-    # ── Ephemeris mode ───────────────────────────────────────────────────────
+    # ephemeris mode
 
     def _run_ephemeris(self) -> None:
         mjd_str = self.query_one("#eph-mjd", Input).value.strip()
@@ -1325,7 +1319,7 @@ class AstrosisApp(App[None]):
         text_result.update("\n".join(lines))
         self._set_status(f"[dim]Ephemeris at MJD {mjd}[/dim]")
 
-    # ── Backend mode ─────────────────────────────────────────────────────────
+    # backend mode
 
     def _run_backend(self) -> None:
         self._set_worker_running(True)
@@ -1365,7 +1359,7 @@ class AstrosisApp(App[None]):
         text_result.update("\n".join(lines))
         self._set_status("[dim]Backend info updated[/dim]")
 
-    # ── Shared display helpers ───────────────────────────────────────────────
+    # shared display helpers
 
     def _show_loading(self, message: str) -> None:
         self.query_one("#text-result", Static).display = False
@@ -1408,7 +1402,7 @@ class AstrosisApp(App[None]):
                 table.add_row(f"[red]{message}[/red]", "", "", "", "")
         self._set_status(f"[red]{message}[/red]")
 
-    # ── Detail strip ─────────────────────────────────────────────────────────
+    # detail strip
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         detail = self.query_one("#detail-strip", Static)
@@ -1444,7 +1438,7 @@ class AstrosisApp(App[None]):
             pc_str = f"{w.pc:.4e}" if w.pc > 0 else "N/A"
             detail.update(f"relative velocity: {rv_mag:.4f} km/s  ·  Pc: {pc_str}")
 
-    # ── Export ───────────────────────────────────────────────────────────────
+    # export
 
     def action_export(self) -> None:
         date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
@@ -1496,7 +1490,7 @@ class AstrosisApp(App[None]):
         except Exception as e:
             self._set_status(f"[red]Export failed: {e}[/red]")
 
-    # ── Refresh ──────────────────────────────────────────────────────────────
+    # refresh
 
     def action_refresh(self) -> None:
         self._clear_results()

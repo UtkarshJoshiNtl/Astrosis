@@ -1,11 +1,4 @@
-"""
-astrosis/frames.py — Coordinate Reference Frames
-==================================================
-Conversions between ECI (Earth-Centered Inertial), ECEF (Earth-Centered, Earth-Fixed),
-and Topocentric (Observer-based) frames.
-Also provides :func:`julian_date` and :func:`equation_of_equinoxes` shared across the
-entire engine and server.
-"""
+# ECI / ECEF / geodetic / topocentric frame conversions
 
 import numpy as np
 from datetime import datetime, timedelta
@@ -13,7 +6,6 @@ from ..constants import RE, F_WGS84, E2_WGS84
 
 
 def julian_date(dt: datetime) -> float:
-    """Return the Julian Date for a naïve UTC datetime."""
     y = dt.year
     m = dt.month
     d = (
@@ -30,14 +22,6 @@ def julian_date(dt: datetime) -> float:
 
 
 def equation_of_equinoxes(dt: datetime) -> float:
-    """
-    Approximate equation of the equinoxes in radians.
-
-    This is a small-angle correction used to convert between TEME and ECI/GCRF.
-    The nutation series includes the four largest terms, adequate for sub-metre
-    position accuracy when comparing SGP4 (TEME) output against the numerical
-    propagator (ECI).
-    """
     jd = julian_date(dt)
     t = (jd - 2451545.0) / 36525.0
 
@@ -65,10 +49,6 @@ def equation_of_equinoxes(dt: datetime) -> float:
 
 
 def gmst_from_datetime(dt: datetime) -> float:
-    """
-    Compute Greenwich Mean Sidereal Time (GMST) in radians.
-    Uses simplified 1997 IAU formula good for coarse analysis.
-    """
     jd = julian_date(dt)
     t_ut1 = (jd - 2451545.0) / 36525.0
 
@@ -87,13 +67,6 @@ def gmst_from_datetime(dt: datetime) -> float:
 def teme_to_eci(
     r_teme: np.ndarray, v_teme: np.ndarray, dt: datetime
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Convert TEME position and velocity to ECI/GCRF.
-
-    The position correction is a small rotation about the z-axis by the
-    equation of the equinoxes. Velocity is rotated with the same transform and
-    gets a small transport correction from the time derivative of that angle.
-    """
     r = np.asarray(r_teme, dtype=np.float64)
     v = np.asarray(v_teme, dtype=np.float64)
 
@@ -113,10 +86,6 @@ def teme_to_eci(
 
 
 def eci_to_ecef(r_eci: np.ndarray, dt: datetime) -> np.ndarray:
-    """
-    Convert ECI position vector [km] to ECEF position vector [km].
-    r_eci can be shape (3,) or (N, 3).
-    """
     theta = gmst_from_datetime(dt)
 
     cost = np.cos(theta)
@@ -132,11 +101,6 @@ def eci_to_ecef(r_eci: np.ndarray, dt: datetime) -> np.ndarray:
 
 
 def ecef_to_geodetic(r_ecef: np.ndarray) -> tuple:
-    """
-    Convert ECEF [x,y,z] km to Geodetic (Lat, Lon, Alt).
-    Returns (lat_rad, lon_rad, alt_km).
-    Uses Bowring iterative method with a pole singularity guard.
-    """
     x, y, z = r_ecef[..., 0], r_ecef[..., 1], r_ecef[..., 2]
 
     lon = np.arctan2(y, x)
@@ -175,9 +139,6 @@ def ecef_to_geodetic(r_ecef: np.ndarray) -> tuple:
 
 
 def geodetic_to_ecef(lat_rad: float, lon_rad: float, alt_km: float) -> np.ndarray:
-    """
-    Convert Geodetic (Lat, Lon, Alt) to ECEF [x,y,z] in km.
-    """
     N = RE / np.sqrt(1 - E2_WGS84 * np.sin(lat_rad) ** 2)
     x = (N + alt_km) * np.cos(lat_rad) * np.cos(lon_rad)
     y = (N + alt_km) * np.cos(lat_rad) * np.sin(lon_rad)
@@ -188,10 +149,6 @@ def geodetic_to_ecef(lat_rad: float, lon_rad: float, alt_km: float) -> np.ndarra
 def topocentric_aer(
     r_sat_ecef: np.ndarray, lat_rad: float, lon_rad: float, alt_km: float
 ) -> tuple:
-    """
-    Compute Azimuth, Elevation, Range for an ECEF satellite position
-    relative to a specific topocentric observer.
-    """
     r_obs = geodetic_to_ecef(lat_rad, lon_rad, alt_km)
 
     # Vector from observer to satellite

@@ -44,11 +44,6 @@ else:
 
 
 def backend_info() -> dict:
-    """Return backend availability and active backend description.
-
-    Returns:
-        dict with keys active, cuda, cpp, numpy_batch, python, description.
-    """
     cuda = _HAS_CUDA
     cpp = _HAS_CPP
     active = "python"
@@ -73,19 +68,6 @@ def backend_info() -> dict:
 
 
 def propagate(state: list, dt_seconds: float, mjd0: float = 0.0) -> list:
-    """
-    Propagate a single state vector forward by dt_seconds.
-
-    Uses C++ backend if available, falls back to pure Python RK4.
-
-    Args:
-        state: ECI state [x, y, z, vx, vy, vz] in km and km/s.
-        dt_seconds: Time step in seconds.
-        mjd0: Modified Julian Date at epoch (0 = no lunisolar/SRP).
-
-    Returns:
-        Propagated state list of 6 floats.
-    """
     if _HAS_CPP:
         try:
             return list(_physics.Propagator().propagate(state, dt_seconds, mjd0))
@@ -103,21 +85,6 @@ def propagate_with_drag(
     cr: float = 1.5,
     mjd0: float = 0.0,
 ) -> list:
-    """
-    Propagate a single state with drag and SRP.
-
-    Args:
-        state: ECI state [x, y, z, vx, vy, vz] in km and km/s.
-        dt_seconds: Time step in seconds.
-        area: Cross-sectional area in m².
-        mass: Spacecraft mass in kg.
-        cd: Drag coefficient.
-        cr: Reflectivity coefficient.
-        mjd0: Modified Julian Date (0 = no lunisolar).
-
-    Returns:
-        Propagated state list of 6 floats.
-    """
     if _HAS_CPP:
         try:
             return list(
@@ -143,24 +110,6 @@ def propagate_steps(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> list:
-    """Propagate a single state over a time interval with sub-stepping.
-
-    Uses C++ backend if available, falls back to pure Python RK4 loop.
-
-    Args:
-        state: ECI state [x, y, z, vx, vy, vz] in km and km/s.
-        total_seconds: Total propagation time in seconds.
-        step_size: Sub-step size in seconds.
-        area: Cross-sectional area in m² (0 to skip drag).
-        mass: Spacecraft mass in kg.
-        cd: Drag coefficient.
-        cr: Reflectivity coefficient.
-        with_drag: Enable drag and SRP.
-        mjd0: Modified Julian Date (0 = no lunisolar).
-
-    Returns:
-        Final propagated state list of 6 floats.
-    """
     if _HAS_CPP:
         try:
             return list(
@@ -206,26 +155,6 @@ def propagate_batch(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> list:
-    """
-    Propagate multiple state vectors for a fixed number of steps.
-
-    Automatically selects the fastest available backend:
-    CUDA (SoA) → C++/OpenMP → NumPy → pure Python.
-
-    Args:
-        states: List of ECI state vectors, each [x, y, z, vx, vy, vz].
-        dt_seconds: Time step in seconds.
-        steps: Number of integration steps.
-        area: Cross-sectional area in m² for drag/SRP.
-        mass: Spacecraft mass in kg.
-        cd: Drag coefficient.
-        cr: Reflectivity coefficient.
-        with_drag: Enable atmospheric drag and SRP.
-        mjd0: Modified Julian Date (0 = no lunisolar).
-
-    Returns:
-        List of propagated state vectors.
-    """
     arr = np.array(states, dtype=np.float64)
 
     if _HAS_CUDA:
@@ -270,26 +199,6 @@ def propagate_batch_full_history(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> np.ndarray:
-    """Propagate multiple states and return full trajectory history.
-
-    Returns all intermediate states for each object (steps+1 frames).
-    CUDA path returns SoA-layout array; C++ and Python paths return
-    AoS-layout array (shape [steps+1, n, 6]).
-
-    Args:
-        states: List of ECI state vectors.
-        dt_seconds: Time step in seconds.
-        steps: Number of integration steps.
-        area: Cross-sectional area in m².
-        mass: Spacecraft mass in kg.
-        cd: Drag coefficient.
-        cr: Reflectivity coefficient.
-        with_drag: Enable drag and SRP.
-        mjd0: Modified Julian Date.
-
-    Returns:
-        ndarray of shape (steps+1, n, 6).
-    """
     arr = np.array(states, dtype=np.float64)
 
     if _HAS_CUDA:
@@ -328,8 +237,7 @@ def propagate_batch_full_history(
 
 
 def _cpp_warnings_to_py(warnings: list) -> list:
-    """Convert C++ ConjunctionWarning objects (with C++ Severity enum) to
-    Python ConjunctionWarning dataclass instances (with StrEnum Severity)."""
+    # C++ Severity enum -> Python StrEnum
     from .conjunction import (
         ConjunctionWarning as PyWarning,
         Severity as PySeverity,
@@ -364,25 +272,6 @@ def detect_conjunctions(
     step_s: float = 60.0,
     mjd0: float = 0.0,
 ) -> list:
-    """
-    Screen all satellite-debris pairs for conjunctions within lookahead window.
-
-    CUDA path uses 2-phase algorithm: pre-propagate all objects once,
-    then scan pairs with coalesced SoA reads (O((ns+nd)*nsteps) pre-prop +
-    O(ns*nd*nsteps) distance-only scan — ~250x faster for 500x500).
-
-    Falls back through C++ → pure Python.
-
-    Args:
-        sat_states: List of satellite ECI state vectors.
-        debris_states: List of debris ECI state vectors.
-        lookahead: Lookahead window in seconds.
-        step_s: Time step for temporal sweep in seconds.
-        mjd0: Modified Julian Date at epoch.
-
-    Returns:
-        List of ConjunctionWarning dataclass instances.
-    """
     if _HAS_CUDA:
         try:
             s_arr = np.array(sat_states, dtype=np.float64)
@@ -452,23 +341,6 @@ def monte_carlo_pc(
     threshold_km: float,
     mjd0: float = 0.0,
 ) -> float:
-    """
-    Monte Carlo collision probability estimation.
-
-    Propagates N sample pairs forward and counts those that pass
-    within threshold_km. Uses CUDA if available, falls back to Python.
-
-    Args:
-        sat_samples: List of N satellite ECI state vectors.
-        deb_samples: List of N debris ECI state vectors.
-        dt: Propagation step in seconds.
-        steps: Number of integration steps.
-        threshold_km: Collision sphere radius in km.
-        mjd0: Modified Julian Date at epoch.
-
-    Returns:
-        Estimated collision probability Pc ∈ [0, 1].
-    """
     sat_arr = np.array(sat_samples, dtype=np.float64)
     deb_arr = np.array(deb_samples, dtype=np.float64)
 

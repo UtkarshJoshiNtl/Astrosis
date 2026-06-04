@@ -14,12 +14,6 @@ from ..constants import (
 )
 from .ephemeris import sun_position_eci, moon_position_eci
 
-__all__ = [
-    "rk4_step",
-    "rk4_batch",
-    "propagate_batch_numpy",
-]
-
 
 def _gravity_accel(x, y, z, r_mag, r2, r3, r5, r7):
     ax = -MU * x / r3
@@ -81,18 +75,7 @@ _ATMO_TABLE = [
 
 
 def get_atmospheric_density(altitude_km):
-    """Exponential atmospheric density model (piecewise isothermal).
-
-    Uses a pre-computed table of scale heights and base densities
-    from the US Standard Atmosphere (1976) reference, covering
-    0–1000 km altitude.
-
-    Args:
-        altitude_km: Altitude above Earth surface in km (scalar or array).
-
-    Returns:
-        Atmospheric density in kg/m³ (same shape as input).
-    """
+    # US Standard 1976, exponential piecewise isothermal layers
     if np.ndim(altitude_km) == 0:
         alt = float(altitude_km)
         if alt < 0:
@@ -169,25 +152,6 @@ def rk4_step(
     cr: float = 1.5,
     elapsed_seconds: float | None = None,
 ) -> tuple:
-    """
-    Fixed-step RK4 integration (one step).
-
-    J2-J4 perturbations applied unconditionally. Lunisolar/SRP gated by
-    mjd0 > 0. Atmospheric drag gated by area > 0 and altitude < 1000 km.
-
-    Args:
-        state: (x, y, z, vx, vy, vz) in km and km/s.
-        dt: Time step in seconds.
-        mjd0: Modified Julian Date (0 to skip lunisolar/SRP).
-        current_step: Step index for MJD computation.
-        area: Cross-sectional area in m² (0 to skip drag).
-        mass: Spacecraft mass in kg.
-        cd: Drag coefficient.
-        cr: Reflectivity coefficient.
-
-    Returns:
-        Propagated state tuple of 6 floats.
-    """
 
     def accel(r, v, local_mjd, r_sun=None, r_moon=None):
         x, y, z = r[0], r[1], r[2]
@@ -397,25 +361,6 @@ def rk4_batch(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> np.ndarray:
-    """Batch RK4 integration over multiple states (NumPy vectorised).
-
-    Applies J2–J4, lunisolar, SRP, and atmospheric drag to all states
-    simultaneously using vectorised NumPy operations.
-
-    Args:
-        state_arr: ndarray of shape (n, 6) — ECI states in km and km/s.
-        dt_seconds: Time step in seconds.
-        steps: Number of integration steps.
-        area: Cross-sectional area in m².
-        mass: Spacecraft mass in kg.
-        cd: Drag coefficient.
-        cr: Reflectivity coefficient.
-        with_drag: Enable drag and SRP.
-        mjd0: Modified Julian Date.
-
-    Returns:
-        Propagated states, ndarray of shape (n, 6).
-    """
     R = state_arr[:, :3].copy()
     V = state_arr[:, 3:].copy()
 
@@ -514,24 +459,7 @@ def propagate_batch_numpy(
     with_drag: bool = False,
     mjd0: float = 0.0,
 ) -> list:
-    """Propagate multiple states via NumPy RK4, returning only the final state.
-
-    Thin wrapper around rk4_batch that accepts and returns lists.
-
-    Args:
-        states: List of ECI state vectors.
-        dt_seconds: Time step in seconds.
-        steps: Number of integration steps.
-        area: Cross-sectional area in m².
-        mass: Spacecraft mass in kg.
-        cd: Drag coefficient.
-        cr: Reflectivity coefficient.
-        with_drag: Enable drag and SRP.
-        mjd0: Modified Julian Date.
-
-    Returns:
-        List of propagated state vectors.
-    """
+    # wraps rk4_batch with list<->ndarray conversion
     arr = np.array(states, dtype=np.float64)
     arr = rk4_batch(arr, dt_seconds, steps, area, mass, cd, cr, with_drag, mjd0)
     return arr.tolist()

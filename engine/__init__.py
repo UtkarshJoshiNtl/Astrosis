@@ -1,43 +1,10 @@
-from __future__ import annotations
 from importlib import import_module
 
 from .constants import (
-    MU,
-    RE,
-    J2,
-    J3,
-    J4,
-    OMEGA_EARTH,
-    MU_SUN,
-    MU_MOON,
-    F_WGS84,
-    E2_WGS84,
-    CRITICAL_DISTANCE,
-    WARNING_DISTANCE,
-    ADVISORY_DISTANCE,
-    RS_SUN,
-    AU,
-    P_SR,
+    MU, RE, J2, J3, J4, OMEGA_EARTH, MU_SUN, MU_MOON,
+    F_WGS84, E2_WGS84, CRITICAL_DISTANCE, WARNING_DISTANCE,
+    ADVISORY_DISTANCE, RS_SUN, AU, P_SR,
 )
-
-__all__ = [
-    "MU",
-    "RE",
-    "J2",
-    "J3",
-    "J4",
-    "OMEGA_EARTH",
-    "MU_SUN",
-    "MU_MOON",
-    "F_WGS84",
-    "E2_WGS84",
-    "CRITICAL_DISTANCE",
-    "WARNING_DISTANCE",
-    "ADVISORY_DISTANCE",
-    "RS_SUN",
-    "AU",
-    "P_SR",
-]
 
 _LAZY_EXPORTS = {
     "rk4_step": (".core", "rk4_step"),

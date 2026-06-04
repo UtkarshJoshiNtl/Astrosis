@@ -1,14 +1,7 @@
-"""
-Astrosis — Major World Cities Database
-========================================
-Mapping of city names (lowercase) to (latitude, longitude) in decimal degrees.
-Covers all continents with ~85 entries.
-"""
-
-from __future__ import annotations
+# city name -> (lat, lon)  ~85 cities across all continents
 
 CITIES: dict[str, tuple[float, float]] = {
-    # ── India ──────────────────────────────────────────────────────────────────
+    # India
     "mumbai": (19.076, 72.8777),
     "delhi": (28.6139, 77.2090),
     "bangalore": (12.9716, 77.5946),
@@ -18,7 +11,7 @@ CITIES: dict[str, tuple[float, float]] = {
     "pune": (18.5204, 73.8567),
     "ahmedabad": (23.0225, 72.5714),
     "jaipur": (26.9124, 75.7873),
-    # ── United States ──────────────────────────────────────────────────────────
+    # US
     "new york": (40.7128, -74.0060),
     "los angeles": (34.0522, -118.2437),
     "chicago": (41.8781, -87.6298),
@@ -39,11 +32,11 @@ CITIES: dict[str, tuple[float, float]] = {
     "nashville": (36.1627, -86.7816),
     "portland": (45.5152, -122.6784),
     "las vegas": (36.1699, -115.1398),
-    # ── Canada ─────────────────────────────────────────────────────────────────
+    # Canada
     "toronto": (43.6532, -79.3832),
     "vancouver": (49.2827, -123.1207),
     "montreal": (45.5017, -73.5673),
-    # ── Europe ─────────────────────────────────────────────────────────────────
+    # Europe
     "london": (51.5074, -0.1278),
     "paris": (48.8566, 2.3522),
     "berlin": (52.5200, 13.4050),
@@ -68,7 +61,7 @@ CITIES: dict[str, tuple[float, float]] = {
     "barcelona": (41.3874, 2.1686),
     "milan": (45.4642, 9.1900),
     "istanbul": (41.0082, 28.9784),
-    # ── East Asia ──────────────────────────────────────────────────────────────
+    # East Asia
     "tokyo": (35.6762, 139.6503),
     "osaka": (34.6937, 135.5023),
     "seoul": (37.5665, 126.9780),
@@ -83,7 +76,7 @@ CITIES: dict[str, tuple[float, float]] = {
     "jakarta": (-6.2088, 106.8456),
     "hanoi": (21.0278, 105.8342),
     "ho chi minh city": (10.8231, 106.6297),
-    # ── South America ──────────────────────────────────────────────────────────
+    # South America
     "são paulo": (-23.5505, -46.6333),
     "sao paulo": (-23.5505, -46.6333),
     "rio de janeiro": (-22.9068, -43.1729),
@@ -96,7 +89,7 @@ CITIES: dict[str, tuple[float, float]] = {
     "bogota": (4.7110, -74.0721),
     "caracas": (10.4806, -66.9036),
     "quito": (-0.1807, -78.4678),
-    # ── Africa ─────────────────────────────────────────────────────────────────
+    # Africa
     "cairo": (30.0444, 31.2357),
     "lagos": (6.5244, 3.3792),
     "johannesburg": (-26.2041, 28.0473),
@@ -107,41 +100,25 @@ CITIES: dict[str, tuple[float, float]] = {
     "addis ababa": (9.0320, 38.7469),
     "algiers": (36.7538, 3.0588),
     "dakar": (14.7167, -17.4677),
-    # ── Australia / Oceania ────────────────────────────────────────────────────
+    # Australia / Oceania
     "sydney": (-33.8688, 151.2093),
     "melbourne": (-37.8136, 144.9631),
     "brisbane": (-27.4698, 153.0251),
     "perth": (-31.9505, 115.8605),
     "auckland": (-36.8485, 174.7633),
-    # ── Middle East ────────────────────────────────────────────────────────────
+    # Middle East
     "dubai": (25.2048, 55.2708),
     "riyadh": (24.7136, 46.6753),
     "tehran": (35.6892, 51.3890),
     "baghdad": (33.3152, 44.3661),
     "tel aviv": (32.0853, 34.7818),
     "doha": (25.2854, 51.5310),
-    # ── Mexico / Central America ───────────────────────────────────────────────
+    # Mexico / Central America
     "mexico city": (19.4326, -99.1332),
 }
 
-__all__ = ["CITIES", "resolve_location"]
-
 
 def resolve_location(city_or_lat, lon=None):
-    """
-    Resolve a location from a city name or explicit coordinates.
-
-    Args:
-        city_or_lat: City name string (case-insensitive) or latitude float.
-        lon: Longitude (required if city_or_lat is a float).
-
-    Returns:
-        Tuple of (lat, lon, display_name).
-
-    Raises:
-        ValueError: If the city is not found, with a helpful message listing
-                    5 closest-matching city names.
-    """
     if isinstance(city_or_lat, str):
         key = city_or_lat.strip().lower()
         if key in CITIES:

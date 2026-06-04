@@ -1,10 +1,3 @@
-"""
-astrosis/analysis.py — High-Level Analysis Routines
-=====================================================
-Combines physics propagation, frames, and visibility logic to output
-structured JSON reports and event logs.
-"""
-
 from datetime import datetime, timedelta
 import numpy as np
 
@@ -27,22 +20,6 @@ def report_passes(
     min_elevation_deg: float = 10.0,
     ingestor=None,
 ):
-    """
-    Predict satellite passes for a ground station.
-
-    Args:
-        norad_id:  NORAD catalog ID.
-        lat, lon:  Ground station coordinates in decimal degrees.
-        alt:       Ground station altitude in km.
-        start_dt:  Simulation start time (UTC, naïve datetime).
-        hours:     Horizon to predict over.
-        dt_step:   Propagation time step in seconds (default 60 s).
-        sat_area:  Satellite cross-sectional area in m² (drag, default 10 m²).
-        sat_mass:  Satellite total mass in kg (drag, default 1000 kg).
-        sat_cd:    Drag coefficient (default 2.2).
-        min_elevation_deg: Minimum elevation angle in degrees to report (default 10).
-        ingestor:  TLEIngestor instance (or mock). Defaults to module-level singleton.
-    """
     if ingestor is None:
         from ..io.data import tle_ingestor as _tle_ingestor
 

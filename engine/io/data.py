@@ -5,8 +5,6 @@ import logging
 import os
 import pathlib
 
-__all__ = ["TLEIngestor", "tle_ingestor"]
-
 logger = logging.getLogger(__name__)
 
 LOCAL_CACHE_DIR = str(pathlib.Path.home() / ".cache" / "astrosis" / "tle")
@@ -16,22 +14,11 @@ BUNDLED_CACHE = str(
 CELESTRAK_API_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 SPACETRACK_TLE_URL = "https://www.space-track.org/basicspaceradar/query/class/tle_latest/ORDINAL/NORAD_CAT_ID/EPOCH/now/format/tle"
-# TLE epoch year cutoff: years < 57 → 2000+, years ≥ 57 → 1900+
-# Standard convention from the TLE format spec; will need updating after 2056.
+# TODO: update this after 2056 lol
 EPOCH_YEAR_CUTOFF = 57
 
 
 class TLEIngestor:
-    """
-    Fetches, caches, and parses TLE data from CelesTrak / Space-Track.
-
-    Fallback chain: CelesTrak → Space-Track (if credentials set) →
-    stale cache → bundled cache (data/active.txt).
-
-    Args:
-        cache_dir: Directory for local TLE cache (default ~/.cache/astrosis/tle).
-    """
-
     def __init__(self, cache_dir: str = LOCAL_CACHE_DIR):
         self.api_url = CELESTRAK_API_URL
         self.cache_dir = cache_dir
@@ -83,19 +70,7 @@ class TLEIngestor:
     def fetch_tle_data(
         self, satellite_id: Optional[str] = None, force_refresh: bool = False
     ) -> List[str]:
-        """
-        Fetch TLE lines from remote source or local cache.
-
-        Fallback order: CelesTrak → Space-Track → stale cache → bundled cache.
-
-        Args:
-            satellite_id: NORAD catalog ID (None = all active satellites).
-            force_refresh: Bypass cache and fetch from remote.
-
-        Returns:
-            List of TLE lines (name + line1 + line2 alternating blocks).
-            Empty list if all sources fail.
-        """
+        # CelesTrak -> Space-Track -> stale cache -> bundled active.txt
         cache_path = self._get_cache_path(satellite_id)
         if not force_refresh and self._is_cache_valid(cache_path):
             logger.info("Loading TLEs from cache: %s", cache_path)
@@ -148,18 +123,6 @@ class TLEIngestor:
         return checksum % 10 == int(line[68])
 
     def parse_tle_lines(self, lines: List[str]) -> List[dict]:
-        """
-        Parse raw TLE lines into structured dictionary entries.
-
-        Validates checksums and line markers ('1 ', '2 '). Skips invalid
-        entries with a warning.
-
-        Args:
-            lines: Raw TLE lines (name + line1 + line2 per satellite).
-
-        Returns:
-            List of dicts with keys: norad_id, satellite_name, line1, line2, epoch.
-        """
         tle_entries = []
         i = 0
         while i < len(lines):
@@ -212,16 +175,6 @@ class TLEIngestor:
     def get_satellites(
         self, satellite_id: Optional[str] = None, force_refresh: bool = False
     ) -> List[dict]:
-        """
-        Convenience: fetch and parse TLE data in one call.
-
-        Args:
-            satellite_id: NORAD catalog ID (None = all active).
-            force_refresh: Bypass local cache.
-
-        Returns:
-            List of parsed satellite dictionaries.
-        """
         lines = self.fetch_tle_data(satellite_id, force_refresh)
         return self.parse_tle_lines(lines)
 

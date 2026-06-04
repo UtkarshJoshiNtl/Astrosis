@@ -124,9 +124,6 @@ def _tle_to_state(norad_id: int, start_dt=None) -> list:
     return list(r_eci) + list(v_eci)
 
 
-# ── Command Handlers ────────────────────────────────────────────────────────────
-
-
 def _fetch(args):
     from .io.data import tle_ingestor
 
@@ -679,11 +676,6 @@ def _ephemeris(args):
     table.add_row("Moon", f"[{mx:.3f}, {my:.3f}, {mz:.3f}]", f"{r_moon:.3f}")
     console.print(f"[bold]Ephemeris at MJD {mjd}[/bold]")
     console.print(table)
-
-
-# ── Dispatch ────────────────────────────────────────────────────────────────────
-
-_DISPATCH = {}
 
 
 _DISPATCH = {

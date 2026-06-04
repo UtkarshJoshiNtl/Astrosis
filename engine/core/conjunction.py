@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -8,8 +6,6 @@ import numpy as np
 
 from .propagator import rk4_step, propagate_batch_numpy
 from ..constants import CRITICAL_DISTANCE, WARNING_DISTANCE, ADVISORY_DISTANCE, RE
-
-__all__ = ["Severity", "PcResult", "ConjunctionWarning", "ConjunctionDetector"]
 
 
 class Severity(StrEnum):
@@ -24,6 +20,7 @@ class PcResult:
     pc: float = 0.0
     sigma_pos_km: float = 0.0
     computed: bool = False
+    # TODO: should probably track more stats here
 
 
 @dataclass
@@ -38,7 +35,6 @@ class ConjunctionWarning:
 
     @property
     def pc(self) -> float:
-        """Collision probability (convenience accessor for pc_result.pc)."""
         return self.pc_result.pc
 
 
@@ -97,21 +93,7 @@ def _brent_minimise(f, a: float, b: float, tol: float = 0.1) -> float:
 def _chan_pc(
     miss_dist_km: float, sigma_r_km: float, rel_speed_km_s: float, hbr_km: float = 0.01
 ) -> PcResult:
-    """
-    Compute collision probability using Chan's method (1997).
-
-    Uses a simplified 2D Gaussian approximation over the encounter plane.
-    Assumes spherical hard-body radius and isotropic position uncertainty.
-
-    Args:
-        miss_dist_km: Closest approach distance in km.
-        sigma_r_km: Combined 1-sigma position uncertainty in km.
-        rel_speed_km_s: Relative speed at TCA in km/s.
-        hbr_km: Hard-body radius in km (default 10 m).
-
-    Returns:
-        PcResult with probability and sigma used.
-    """
+    # Chan's method (1997) — 2D Gaussian over encounter plane
     r = PcResult()
     r.sigma_pos_km = sigma_r_km
     if sigma_r_km <= 0 or rel_speed_km_s <= 0:
@@ -123,16 +105,6 @@ def _chan_pc(
 
 
 class ConjunctionDetector:
-    """
-    Screens satellite-debris pairs for conjunctions.
-
-    Uses a broad-phase KDTree filter (or O(n²) fallback) to find candidate
-    pairs, then propagates full histories for all objects and scans for
-    minimum-approach distances.
-
-    Pairs exceeding severity thresholds get TCA refinement via Brent minimisation
-    of the inter-object distance function.
-    """
 
     def detect(
         self,
@@ -143,27 +115,7 @@ class ConjunctionDetector:
         tle_age_days: float = 1.0,
         mjd0: float = 0.0,
     ) -> List[ConjunctionWarning]:
-        """
-        Screen all satellite-debris pairs for conjunctions.
-
-        Algorithm:
-        1. Broad-phase filtering via KDTree (or O(n²) fallback without SciPy).
-        2. Pre-propagate full trajectory for all objects.
-        3. Coarse temporal sweep: find minimum-approach distance per candidate pair.
-        4. Brent refinement of TCA within [tca-step_s, tca+step_s].
-        5. Chan collision probability for pairs exceeding ADVISORY threshold.
-
-        Args:
-            sat_states: List of satellite ECI state vectors.
-            debris_states: List of debris ECI state vectors.
-            lookahead_s: Lookahead window in seconds.
-            step_s: Temporal sweep step size in seconds.
-            tle_age_days: Age of TLE data (used for position uncertainty).
-            mjd0: Modified Julian Date at epoch.
-
-        Returns:
-            Sorted list of ConjunctionWarning instances (closest first).
-        """
+        # KDTree broadphase -> propagate all -> coarse sweep -> Brent -> Chan Pc
         if not sat_states or not debris_states:
             return []
 
