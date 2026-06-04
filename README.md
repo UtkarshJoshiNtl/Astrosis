@@ -1,21 +1,18 @@
 # Astrosis — orbital mechanics calculator
 
-**Batch propagate 5,000 satellites in 75 ms.** CLI + TUI with J2/J3/J4 propagation,
-conjunction screening, pass prediction, and ephemeris. Auto-selects CUDA → C++/OpenMP →
-NumPy → Python backend. Zero config.
+CLI + TUI with J2/J3/J4 propagation, conjunction screening, pass prediction,
+and ephemeris. Auto-selects CUDA → C++/OpenMP → NumPy → Python backend.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/UtkarshJoshiNtl/Astrosis/ci.yml?branch=main&label=CI&logo=github)](https://github.com/UtkarshJoshiNtl/Astrosis/actions)
 [![License MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PyPI - Version](https://img.shields.io/pypi/v/astrosis)](https://pypi.org/project/astrosis/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/astrosis)](https://pypi.org/project/astrosis/)
-[![GitHub last commit](https://img.shields.io/github/last-commit/UtkarshJoshiNtl/Astrosis)](https://github.com/UtkarshJoshiNtl/Astrosis)
 
 ![TUI demo](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/assets/demo.gif)
 
 <details>
 <summary><b>Table of Contents</b></summary>
 
-- [Why Astrosis?](#why-astrosis)
 - [Quick start](#quick-start)
 - [Python API](#python-api)
 - [Features](#features)
@@ -25,25 +22,9 @@ NumPy → Python backend. Zero config.
 - [TUI reference](#tui-reference)
 - [CLI reference](#cli-reference)
 - [Contributing](#contributing)
-- [Acknowledgments](#acknowledgments)
 - [License](#license)
 
 </details>
-
-## Why Astrosis?
-
-**Stop waiting for Python propagation.** Single-threaded Python does one satellite
-in ~400 ms. Astrosis does 5,000 in 75 ms — a **500× speedup** — and you don't
-have to think about the backend.
-
-- **GPU auto-acceleration.** CUDA → C++/OpenMP → NumPy → Python fallback. No config
-  required. The router probes your hardware and picks the fastest path.
-- **Conjunction screening ready.** Built-in pairwise collision detection with Brent TCA
-  refinement and Chan probability. 400 × 400 pairs in **125 ms** (CUDA).
-- **TUI + CLI duality.** Rich interactive TUI (6 modes, collapsible sections, JSON export)
-  plus full CLI for scripting. Same Python API under both.
-
-If you can `pip install`, you can use Astrosis.
 
 ## Quick start
 
@@ -58,21 +39,21 @@ astrosis passes --city Mumbai --id 25544
 astrosis info --id 25544
 ```
 
-## Python API
+No GPU required — CUDA is optional. Falls back to C++/OpenMP → NumPy → Python
+automatically on any machine. Python ≥ 3.10.
 
-Use Astrosis as a library in your own scripts:
+## Python API
 
 ```python
 import astrosis
 
-# Propagate a single satellite 24 hours forward
+# Propagate a single satellite forward
 state = astrosis.propagate(
     [6678, 0, 0, 0, 7.7, 0],  # ECI: x, y, z, vx, vy, vz (km, km/s)
     dt_seconds=86400
 )
-print(f"After 24 h: {state}")
 
-# Batch propagate 1,000 satellites — auto-picks fastest backend
+# Batch propagate — auto-picks fastest backend
 states = astrosis.propagate_batch(
     initial_states, dt_seconds=60, steps=1440
 )
@@ -86,31 +67,34 @@ warnings = astrosis.detect_conjunctions(
 print(astrosis.backend_info())
 ```
 
+Full reference: [docs/api.md](docs/api.md).
+
 ## Features
 
 | Category | Capabilities |
 |----------|-------------|
 | **Propagation** | RK4 with J2/J3/J4, atmospheric drag (US Standard 1976), SRP, lunisolar third-body |
-| **Auto-backend** | CUDA GPU → C++ OpenMP → NumPy batch → Python fallback, transparent fallback |
+| **Auto-backend** | CUDA GPU → C++ OpenMP → NumPy batch → Python fallback |
 | **Conjunction** | KDTree broad-phase, pairwise distance scan, Brent TCA refinement, Chan collision probability |
-| **Pass prediction** | SGP4 → RK4 seamless handoff, elevation/visibility filtering, ~85 cities built-in |
+| **Pass prediction** | SGP4 → RK4 handoff, elevation/visibility filtering, ~85 cities built-in |
 | **Ephemeris** | Sun/Moon ECI positions via VSOP87/ELP-2000, eclipse state (umbra/penumbra) |
-| **TUI** | 6 modes, help overlay, collapsible advanced sections, JSON export, persistence, autocomplete cities |
+| **TUI** | 6 modes, help overlay, JSON export, persistence, autocomplete cities |
 | **Coordinate frames** | ECI ⇄ ECEF, TEME → ECI, geodetic, topocentric (az/el/range), GMST + equation of equinoxes |
+
+Position accuracy: integrator error < 0.1 km at 24h. Real-world accuracy is
+dominated by TLE uncertainty (0.1–1 km), not the propagator.
 
 ## Architecture
 
 ```mermaid
 graph TB
     subgraph UI["User Interface"]
-        direction LR
-        CLI["main.py / CLI"]
+        CLI["astrosis/cli.py"]
         TUI["astrosis/tui.py<br/>Textual 8.x"]
         API["astrosis.*<br/>Python API"]
     end
 
     subgraph CORE["Physics Core"]
-        direction TB
         PROP["Propagator<br/>RK4 · J2–J4 · Drag · SRP<br/>Lunisolar"]
         CONJ["Conjunction Detector<br/>KDTree · Brent TCA<br/>Chan Pc"]
         PASS["Pass Predictor<br/>SGP4→RK4 · AER<br/>Eclipse check"]
@@ -143,22 +127,32 @@ graph TB
     CITIES --> PASS
 ```
 
-The router in `astrosis/core/accelerator.py` probes `cuda_available()`, C++ module
-presence, and falls back through the layers — all transparent to the caller.
+The router in `astrosis/core/accelerator.py` selects the best backend.
+See [docs/architecture.md](docs/architecture.md) for data flow details and
+[docs/design.md](docs/design.md) for design decisions (RK4 vs adaptive,
+J2–J4 vs EGM2008, AoS vs SoA, etc.).
 
 ## Performance
+
+Benchmarked on RTX 2050 + Ryzen 5. CUDA optional — C++/OpenMP backend
+delivers similar speed without a GPU.
 
 | Operation | Python | C++ | CUDA |
 |-----------|-------:|----:|-----:|
 | Single sat (50k steps) | 391 ms | **21 ms (19×)** | N/A |
-| Batch 1k sats × 864 steps | 7074 ms | **13 ms (566×)** | **245 ms (29×)** |
-| Batch 5k sats × 864 steps | 36854 ms | **55 ms (676×)** | **291 ms (127×)** |
+| Batch 1k sats × 864 steps | 7074 ms | **13 ms (566×)** | 245 ms (29×) |
+| Batch 5k sats × 864 steps | 36854 ms | **55 ms (676×)** | 291 ms (127×) |
 | Conjunction 200×200 1h | 6262 ms | 498 ms (13×) | **45 ms (139×)** |
 | Conjunction 400×400 2h | 26677 ms | 3856 ms (7×) | **125 ms (214×)** |
 
-C++ dominates < 500 satellites (no PCIe overhead). CUDA dominates > 500 with
-up to **66,483 sats/s** throughput. See [docs/performance.md](docs/performance.md)
-for full crossover analysis, streamed mode benchmarks, and roofline.
+C++/OpenMP is faster than CUDA for batch propagation at all tested sizes (no
+PCIe overhead). CUDA dominates conjunction screening where pairwise
+calculations are compute-bound.
+
+See [docs/performance.md](docs/performance.md) for full benchmarks, scaling
+analysis, roofline, and kernel occupancy. See [docs/validation.md](docs/validation.md)
+for physics validation results (energy conservation, SGP4 comparison, J2
+regression, etc.).
 
 ## Backend auto-selection
 
@@ -173,6 +167,8 @@ $ astrosis backend
 │ GPU: NVIDIA GPU                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
+
+`ASTROSIS_MOCK_GPU=1` forces CPU only.
 
 ## TUI reference
 
@@ -220,24 +216,8 @@ via `~/.cache/astrosis/tui_state.json`.
 
 ## Contributing
 
-Contributions welcome — whether it's a bug report, feature request, or pull
-request. See [docs/contributing.md](docs/contributing.md) for:
-
-- Dev setup and build instructions
-- Running tests and physics validation
-- Code style (Black, Flake8, clang-format)
-- PR workflow
-
-## Acknowledgments
-
-Astrosis builds on excellent open-source work:
-
-- **SGP4** — Two-line element propagation ([python-sgp4](https://github.com/brandon-rhodes/python-sgp4))
-- **VSOP87 / ELP-2000** — Solar and lunar ephemerides
-- **Textual** — TUI framework
-- **pybind11** — C++/Python bridge
-- **NumPy / SciPy** — Numerical foundation
-- **CelesTrak / Space-Track** — TLE data sources
+Contributions welcome. See [docs/contributing.md](docs/contributing.md) for
+dev setup, tests, code style, and PR workflow.
 
 ## License
 

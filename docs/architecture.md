@@ -1,71 +1,85 @@
 # Architecture
 
-## System Overview
+```mermaid
+graph TB
+    subgraph UI["User Interface"]
+        CLI["astrosis/cli.py"]
+        TUI["astrosis/tui.py"]
+        API["astrosis.*"]
+    end
 
+    subgraph CORE["Physics Core (astrosis/core/)"]
+        PROP["Propagator<br/>RK4 · J2–J4 · Drag · SRP<br/>Lunisolar"]
+        CONJ["Conjunction Detector<br/>KDTree · Brent TCA<br/>Chan Pc"]
+        PASS["Pass Predictor<br/>SGP4→RK4 · AER<br/>Eclipse check"]
+        EPHEM["Ephemeris<br/>Sun VSOP87 · Moon ELP-2000"]
+        ACCEL["Accelerator<br/>Auto-backend router"]
+    end
+
+    subgraph GEO["Coordinate Frames (astrosis/geo/)"]
+        FRAMES["ECI ↔ ECEF ↔ Geodetic<br/>TEME→ECI · Topocentric"]
+        VIS["Visibility<br/>Eclipse check<br/>Optical visibility"]
+    end
+
+    subgraph BACKEND["Backend Layer (auto-selected)"]
+        CUDA["CUDA GPU<br/>SoA kernels"]
+        CPP["C++ / OpenMP<br/>pybind11"]
+        NUMPY["NumPy batch<br/>Vectorised"]
+        PYTHON["Python fallback"]
+    end
+
+    subgraph DATA["Data Sources"]
+        TLE["TLE Ingestor<br/>CelesTrak / Space-Track"]
+        CITIES["City Database<br/>~85 cities"]
+    end
+
+    CLI --> CORE
+    TUI --> API
+    API --> CORE
+    PROP --> ACCEL
+    CONJ --> ACCEL
+    PASS --> FRAMES
+    PASS --> PROP
+    PASS --> EPHEM
+    CONJ --> PROP
+    TLE --> PASS
+    CITIES --> PASS
 ```
-                    User Interfaces
-                ┌──────────┬──────────────┐
-                │  CLI     │  Python API  │
-                │ main.py  │  engine.*    │
-                └──────────┴──────────────┘
-                              │
-                ┌─────────────┴─────────────┐
-                │     Physics Core          │
-                │  (engine/core/)           │
-                │  propagator, conjunction, │
-                │  ephemeris, accelerator   │
-                └─────────────┬─────────────┘
-                              │
-        ┌─────────────────────┼──────────────────────┐
-        │                     │                      │
-  ┌─────┴──────────┐  ┌───────┴─────────┐  ┌────────┴──────────┐
-  │  Coordinate    │  │  I/O & Catalog  │  │  Backend Layer   │
-  │  Transforms    │  │  TLE, caching   │  │  (auto-detected) │
-  │  (geo/)        │  │  (io/)          │  │                   │
-  └────────────────┘  └─────────────────┘  │  CUDA → C++       │
-                                           │  → NumPy → Python │
-                                           └────────────────────┘
-```
+
+The router in `astrosis/core/accelerator.py` probes `cuda_available()`, C++ module
+presence, and falls back through the layers.
 
 ## Backend Selection
 
-Astrosis automatically chooses the best backend based on hardware availability:
+Auto-chooses the best backend based on hardware:
 
 ```
 CUDA available?
-  ├─ Yes ──┬─ Problem size > 500 sats? → CUDA (82× speedup)
-  │        └─ No                        → C++ (lower latency)
-  └─ No ───┬─ C++ compiled? ──┬─ Yes → C++/OpenMP (18× speedup)
-           │                  └─ No  ──┬─ NumPy? → NumPy (3–5×)
-           │                           └─ No     → pure Python
+  ├─ CUDA (conjunction pairs)     → CUDA (125 ms for 400×400 pairs)
+  ├─ CUDA (batch prop < 5000)     → C++/OpenMP (lower latency)
+  └─ No CUDA ─┬─ C++ compiled? ─┬─ Yes → C++/OpenMP
+               │                 └─ No  ──┬─ NumPy? → NumPy batch
+               │                          └─ No     → pure Python
 ```
 
-| Factor | Threshold | Decision |
-|--------|-----------|----------|
-| Satellites | < 500 | Prefer C++ (lower launch overhead) |
-| Satellites | 500–2,000 | CUDA competitive |
-| Satellites | > 2,000 | Strongly prefer CUDA |
-| Steps | < 10,000 | CPU typically adequate |
-| Steps | > 100,000 | CUDA essential for real-time |
-| dt | > 60 s | CPU competitive (fewer steps) |
-| dt | 1–10 s | CUDA advantage grows |
+| Factor | Decision |
+|--------|----------|
+| Conjunction screening | Always prefer CUDA (31× over C++) |
+| Batch propagation < 5000 | C++/OpenMP (no PCIe overhead) |
+| Batch propagation 5000+ | C++/OpenMP typically faster; CUDA competitive with streamed mode |
 
 Manual override: `ASTROSIS_MOCK_GPU=1` forces CPU.
 
 ## Data Flow: Batch Propagation
 
 ```
-propagate_batch(states, dt_seconds=10, steps=8640)   # 1,000 sats, 24h
+propagate_batch(states, dt_seconds=10, steps=8640)   # 1000 sats, 24h
 
   accelerator.py
-    → Detects 1,000 sats → CUDA selected
+    → Detects 1000 sats → C++ selected (OpenMP)
     → Python ↔ C++ FFI (pybind11)
-    → GPU Memory: SoA layout [x₀..xₙ₋₁, y₀..yₙ₋₁, ..., vz₀..vzₙ₋₁] (48 KB)
-    → CUDA Kernel: 1 launch, all 4 RK4 stages internally
-      for step in 0..8640:
-        rk4_step_device(x, y, z, vx, vy, vz)
-    → GPU → host download (48 KB, ~14 ms)
-    → Final: 1,000 × 6 state array in 46.9 ± 2.1 ms
+    → One satellite per thread, aligned to 64-byte cache lines
+    → C++ returns (n, 6) array in ~13 ms
 ```
 
 ## Data Flow: Conjunction Screening

@@ -1,5 +1,8 @@
 # Cache & generated data
 .cache/
+
+# Developer/contributor guide
+AGENTS.md
 *.log
 
 # C++/CMake build artifacts
