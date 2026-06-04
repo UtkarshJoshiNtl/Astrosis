@@ -426,10 +426,12 @@ def _info(args):
     state_text = (
         f"[bold]Position:[/bold]"
         f" [{r_eci[0]:.3f}, {r_eci[1]:.3f}, {r_eci[2]:.3f}] km\n"
-        f"[bold]Velocity:[/bold] [{v_eci[0]:.6f}, {v_eci[1]:.6f}, {v_eci[2]:.6f}] km/s\n"
+        f"[bold]Velocity:[/bold] [{v_eci[0]:.6f}, {v_eci[1]:.6f}, "
+        f"{v_eci[2]:.6f}] km/s\n"
         f"[bold]Altitude:[/bold]"
         f" {altitude:.1f} km\n"
-        f"[bold]Ground Track:[/bold] {abs(lat_deg):.4f}°{'N' if lat_deg >= 0 else 'S'}, "
+        f"[bold]Ground Track:[/bold] {abs(lat_deg):.4f}°"
+        f"{'N' if lat_deg >= 0 else 'S'}, "
         f"{abs(lon_deg):.4f}°{lon_dir}\n"
         f"[dim]As of {now_str} UTC[/dim]"
     )
@@ -700,12 +702,10 @@ _DISPATCH = {
 
 
 def main():
-    if len(sys.argv) == 1 or (
-        len(sys.argv) == 2 and sys.argv[1] == "--mock-gpu"
-    ):
+    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == "--mock-gpu"):
         if "--mock-gpu" in sys.argv:
             os.environ["ASTROSIS_MOCK_GPU"] = "1"
-        from engine.tui import AstrosisApp
+        from astrosis.tui import AstrosisApp
 
         AstrosisApp().run()
         return

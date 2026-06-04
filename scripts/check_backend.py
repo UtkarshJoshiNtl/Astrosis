@@ -5,7 +5,7 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from engine.core.accelerator import backend_info
+from astrosis.core.accelerator import backend_info
 
 def check():
     info = backend_info()

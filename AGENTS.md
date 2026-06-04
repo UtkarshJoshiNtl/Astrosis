@@ -3,7 +3,7 @@
 CLI + TUI orbital mechanics calculator. No frontend, no server.
 
 ## Structure
-- `engine/` — Python engine (entrypoints: `main.py`, `python -m engine`, or `astrosis` after `pip install -e .`)
+- `astrosis/` — Python implementation (entrypoints: `main.py`, `python -m astrosis`, or `astrosis` after `pip install -e .`)
 - `cpp/` — C++/CUDA backends (pybind11 module `physics_engine`, built via CMake)
 - `tests/` — `test_correctness.py` (17 tests)
 - `validation/` — Physics validation plots (run from repo root — scripts use `sys.path.insert(0, ...)`)
@@ -16,12 +16,12 @@ CLI + TUI orbital mechanics calculator. No frontend, no server.
 | Install deps | `pip install -r requirements.txt` |
 | Install pybind11 | `pip install pybind11` (needed for C++ build) |
 | Build C++/CUDA | `./build-backends.sh` (auto-detects CUDA) |
-| Run CLI | `astrosis <command>` or `python -m engine <command>` or `python main.py <command>` |
+| Run CLI | `astrosis <command>` or `python -m astrosis` or `python main.py <command>` |
 | Run TUI | `astrosis` (no args) |
 | Tests | `pytest tests/test_correctness.py -v` (17 tests) |
-| Lint | `flake8 engine/` |
-| Format check | `black --check engine/` |
-| Typecheck | `mypy engine/ --ignore-missing-imports \|\| true` (CI passes with `\|\| true`) |
+| Lint | `flake8 astrosis/` |
+| Format check | `black --check astrosis/` |
+| Typecheck | `mypy astrosis/ --ignore-missing-imports \|\| true` (CI passes with `\|\| true`) |
 | Validation | `python validation/validate_physics.py` (outputs PNGs to `validation/plots/`) |
 | SGP4 comparison | `python validation/sgp4_vs_rk4.py` |
 | TLE refresh | `./scripts/refresh-tle-cache.sh` |
@@ -34,10 +34,10 @@ CI order (`.github/workflows/ci.yml`): `flake8` → `black --check` → `mypy \|
 - State: 6-element list `[x, y, z, vx, vy, vz]`, ECI frame, km and km/s
 - FP64 everywhere — FP32 insufficient for 24 h integration
 - Fixed-step RK4 only (no adaptive stepping; GPU warp uniformity constraint)
-- Constants single-source in `engine/constants.py`
-- `julian_date`, `equation_of_equinoxes`, `teme_to_eci` in `engine/geo/frames.py` — do NOT reimplement
-- `Severity` (StrEnum) in `engine/core/conjunction.py` — use enum, not string literals
-- Auto-backend: `engine/core/accelerator.py` picks CUDA → C++/OpenMP → NumPy → Python fallback
+- Constants single-source in `astrosis/constants.py`
+- `julian_date`, `equation_of_equinoxes`, `teme_to_eci` in `astrosis/geo/frames.py` — do NOT reimplement
+- `Severity` (StrEnum) in `astrosis/core/conjunction.py` — use enum, not string literals
+- Auto-backend: `astrosis/core/accelerator.py` picks CUDA → C++/OpenMP → NumPy → Python fallback
 - Mock GPU: `ASTROSIS_MOCK_GPU=1` or `python main.py --mock-gpu`
 
 ## C++/CUDA specifics
@@ -48,8 +48,8 @@ CI order (`.github/workflows/ci.yml`): `flake8` → `black --check` → `mypy \|
 - Brent minimiser: `brent_minimise<F>` in `conjunction.cpp` — templated, no `std::function`
 - CUDA conjunction: 2-phase `k_prepropagate` (SoA per timestep) + `k_scan_pairs` (coalesced reads)
 - C++ conjunction: pre-propagates all objects via `batch_propagate_full_history`, then pairwise distance scan + Brent refinement from nearest pre-propagated frame
-- `monte_carlo_pc()` in `engine/core/accelerator.py` — CUDA → Python fallback
-- `engine/__main__.py` enables `python -m engine`
+- `monte_carlo_pc()` in `astrosis/core/accelerator.py` — CUDA → Python fallback
+- `astrosis/__main__.py` enables `python -m astrosis`
 
 ## TUI gotchas (Textual 8.x)
 - **Do NOT name an attribute `_current_mode`** — Textual's `App` uses this internally for its MODES dict. Use `_active_tab` or similar.
@@ -64,7 +64,7 @@ CI order (`.github/workflows/ci.yml`): `flake8` → `black --check` → `mypy \|
 - **Bug to avoid:** The CSV loader always consumes the first row. For 6-col files, it tries to parse it as data (numeric); if that fails, it treats it as a header. For 7-col files, the first row is always treated as a header.
 
 ## Pre-commit hooks
-black (engine/ + tests/), ruff (engine/ + tests/), clang-format (cpp/), trailing-whitespace, end-of-file-fixer, check-yaml, check-json.
+black (astrosis/ + tests/), ruff (astrosis/ + tests/), clang-format (cpp/), trailing-whitespace, end-of-file-fixer, check-yaml, check-json.
 
 ## TLE cache
 - Location: `~/.cache/astrosis/tle/`
