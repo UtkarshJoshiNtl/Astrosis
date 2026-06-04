@@ -24,7 +24,7 @@ _LAZY_GEO = {
 
 def __getattr__(name: str):
     if name not in _LAZY_GEO:
-        raise AttributeError(f"module 'engine.geo' has no attribute {name!r}")
+        raise AttributeError(f"module 'astrosis.geo' has no attribute {name!r}")
     module_name, attr_name = _LAZY_GEO[name]
     module = import_module(module_name, __name__)
     value = getattr(module, attr_name)

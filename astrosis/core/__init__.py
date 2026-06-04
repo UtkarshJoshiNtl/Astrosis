@@ -16,7 +16,7 @@ _LAZY_EXPORTS = {
 
 def __getattr__(name: str):
     if name not in _LAZY_EXPORTS:
-        raise AttributeError(f"module 'engine.core' has no attribute {name!r}")
+        raise AttributeError(f"module 'astrosis.core' has no attribute {name!r}")
     # lazy import to avoid circular deps at module level
     module_name, attr_name = _LAZY_EXPORTS[name]
     module = import_module(module_name, __name__)

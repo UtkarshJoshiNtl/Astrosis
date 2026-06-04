@@ -300,8 +300,8 @@ class ConjReq(BaseModel):
 
 @app.post("/api/conjunctions")
 async def conjunctions(req: ConjReq):
-    from engine.core.accelerator import propagate_batch
-    from engine.core.conjunction import ConjunctionDetector
+    from astrosis.core.accelerator import propagate_batch
+    from astrosis.core.conjunction import ConjunctionDetector
     
     # Load states for all requested satellites
     sat_states = []

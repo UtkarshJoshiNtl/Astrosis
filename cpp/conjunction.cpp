@@ -139,7 +139,7 @@ std::vector<ConjunctionWarning> ConjunctionDetector::detect(
     // Helper: reconstruct state at arbitrary time t from pre-propagated history.
     // Uses the nearest pre-propagated frame + one RK4 step for the remainder.
     auto state_at_t = [&](const std::vector<double>& history, int n_objects, int obj_idx, double t) -> StateVector {
-        int base_step = std::min((int)(t / step_s), steps);
+        int base_step = std::min(static_cast<int64_t>(t / step_s), steps);
         double rem = t - base_step * step_s;
         StateVector s;
         std::memcpy(s.raw(), &history[base_step * (n_objects * 6) + obj_idx * 6], 6 * sizeof(double));

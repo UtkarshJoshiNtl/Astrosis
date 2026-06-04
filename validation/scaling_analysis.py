@@ -123,7 +123,7 @@ print(elapsed)
 def _time_cuda(states: np.ndarray) -> float:
     arr = states.copy()
     t0 = time.perf_counter()
-    _cpp.cuda_propagate_batch(arr, DT, STEPS)
+    _cpp.cuda_propagate_batch_soa(arr, DT, STEPS)
     return time.perf_counter() - t0
 
 
