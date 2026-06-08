@@ -54,6 +54,11 @@ def _load_csv(path: str) -> tuple:
                 raise ValueError(f"Empty CSV: {path}")
             ncols = len(first)
             if ncols == 7:
+                try:
+                    rows.append([float(x) for x in first[1:7]])
+                    ids.append(first[0])
+                except ValueError:
+                    pass
                 for row in reader:
                     ids.append(row[0])
                     rows.append([float(x) for x in row[1:7]])
