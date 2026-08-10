@@ -1,7 +1,9 @@
-# Astrosis — orbital mechanics calculator
+# Astrosis — portable HPC numerics for orbital mechanics
 
-CLI + TUI with J2/J3/J4 propagation, conjunction screening, pass prediction,
-and ephemeris. Auto-selects CUDA → C++/OpenMP → NumPy → Python backend.
+A single orbital-mechanics workload implemented four times — CUDA, C++/OpenMP,
+NumPy, and pure Python — behind one auto-selecting API, so you can *measure*
+where each backend wins and why. The orbital-mechanics UI is the excuse; the
+portability study is the point.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/UtkarshJoshiNtl/Astrosis/ci.yml?branch=main&label=CI&logo=github)](https://github.com/UtkarshJoshiNtl/Astrosis/actions)
 [![License MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -13,11 +15,13 @@ and ephemeris. Auto-selects CUDA → C++/OpenMP → NumPy → Python backend.
 <details>
 <summary><b>Table of Contents</b></summary>
 
+- [What this project studies](#what-this-project-studies)
+- [The headline finding](#the-headline-finding)
 - [Quick start](#quick-start)
 - [Python API](#python-api)
 - [Features](#features)
-- [Architecture](#architecture)
 - [Performance](#performance)
+- [Architecture](#architecture)
 - [Backend auto-selection](#backend-auto-selection)
 - [TUI reference](#tui-reference)
 - [CLI reference](#cli-reference)
@@ -25,6 +29,49 @@ and ephemeris. Auto-selects CUDA → C++/OpenMP → NumPy → Python backend.
 - [License](#license)
 
 </details>
+
+## What this project studies
+
+Every backend computes the *same* RK4 + J2–J4 propagation, and the router in
+`astrosis/core/accelerator.py` picks one at runtime. That setup turns three
+questions you cannot answer from theory alone into measured data:
+
+1. **When is the GPU the right tool?** At what problem size does CUDA launch
+   overhead + PCIe transfer stop paying for themselves?
+2. **When is a multicore CPU the right tool?** C++/OpenMP has no transfer cost
+   and sub-millisecond latency — is it ever *faster* than a GPU?
+3. **How portable is "portable"?** One benchmark matrix, four implementations,
+   no vendor lock-in. Same numerics everywhere (FP64, IEEE 754, no
+   `-ffast-math`), so the comparison is honest.
+
+The answers are in the benchmark numbers below — and one of them is
+counter-intuitive enough to matter for real systems design.
+
+## The headline finding
+
+**The CPU beats the GPU at batch propagation, and the GPU wins at conjunction
+screening.** Same physics, same FP64 kernels, same machine.
+
+| Operation | Python | C++/OpenMP | CUDA |
+|-----------|-------:|-----------:|-----:|
+| Batch 1k sats × 864 steps | 7074 ms | **13 ms (566×)** | 245 ms (29×) |
+| Batch 5k sats × 864 steps | 36854 ms | **55 ms (676×)** | 291 ms (127×) |
+| Conjunction 200×200 1 h | 6262 ms | 498 ms (13×) | **45 ms (139×)** |
+| Conjunction 400×400 2 h | 26677 ms | 3856 ms (7×) | **125 ms (214×)** |
+
+Why: propagation is launch-bound at these sizes — CUDA pays a fixed per-call
+cost plus a host↔device round trip, while OpenMP's cost is a few wakeups. When
+CUDA overlaps transfer and compute (streamed mode), the gap narrows (1k sats:
+99 ms streamed vs 245 ms SoA) but does not close. Conjunction screening, by
+contrast, is a compute-bound pairwise scan with no per-satellite launch — that
+is where 16 SMs beat 6 cores, by up to 214×.
+
+The shape of this trade-off — "offload only if the kernel is big enough to
+amortise the transfer" — is the transferable lesson. Detailed scaling,
+SoA-vs-AoS memory layout (1.4× throughput, ~6.8× bandwidth utilisation),
+roofline (kernel is compute-bound at 2.5 FLOP/byte vs a 1.04 ridge point), and
+kernel occupancy (100% propagation, 92% conjunction) live in
+[docs/performance.md](docs/performance.md).
 
 ## Quick start
 
@@ -81,8 +128,35 @@ Full reference: [docs/api.md](docs/api.md).
 | **TUI** | 6 modes, help overlay, JSON export, persistence, autocomplete cities |
 | **Coordinate frames** | ECI ⇄ ECEF, TEME → ECI, geodetic, topocentric (az/el/range), GMST + equation of equinoxes |
 
-Position accuracy: integrator error < 0.1 km at 24h. Real-world accuracy is
-dominated by TLE uncertainty (0.1–1 km), not the propagator.
+Position accuracy: integrator error < 0.1 km at 24 h. Real-world accuracy is
+dominated by TLE uncertainty (0.1–1 km), not the propagator. All backends are
+validated against SGP4 and energy-conservation checks in
+[docs/validation.md](docs/validation.md) — identical physics, not just
+identical output.
+
+## Performance
+
+Benchmarked on RTX 2050 + Ryzen 5. Full suite, scaling analysis, roofline, and
+occupancy: [docs/performance.md](docs/performance.md).
+
+| Operation | Python | C++ | CUDA |
+|-----------|-------:|----:|-----:|
+| Single sat (50k steps) | 391 ms | **21 ms (19×)** | N/A |
+| Batch 1k sats × 864 steps | 7074 ms | **13 ms (566×)** | 245 ms (29×) |
+| Batch 5k sats × 864 steps | 36854 ms | **55 ms (676×)** | 291 ms (127×) |
+| Conjunction 200×200 1h | 6262 ms | 498 ms (13×) | **45 ms (139×)** |
+| Conjunction 400×400 2h | 26677 ms | 3856 ms (7×) | **125 ms (214×)** |
+
+C++/OpenMP is faster than CUDA for batch propagation at all tested sizes (no
+PCIe overhead, no per-call launch). CUDA dominates conjunction screening where
+pairwise calculations are compute-bound.
+
+![cuda_crossover](https://raw.githubusercontent.com/UtkarshJoshiNtl/Astrosis/main/validation/plots/7_cuda_crossover.png)
+
+See [docs/performance.md](docs/performance.md) for full benchmarks, scaling
+analysis, roofline, and kernel occupancy. See
+[docs/validation.md](docs/validation.md) for physics validation results
+(energy conservation, SGP4 comparison, J2 regression, etc.).
 
 ## Architecture
 
@@ -127,32 +201,10 @@ graph TB
     CITIES --> PASS
 ```
 
-The router in `astrosis/core/accelerator.py` selects the best backend.
-See [docs/architecture.md](docs/architecture.md) for data flow details and
-[docs/design.md](docs/design.md) for design decisions (RK4 vs adaptive,
-J2–J4 vs EGM2008, AoS vs SoA, etc.).
-
-## Performance
-
-Benchmarked on RTX 2050 + Ryzen 5. CUDA optional — C++/OpenMP backend
-delivers similar speed without a GPU.
-
-| Operation | Python | C++ | CUDA |
-|-----------|-------:|----:|-----:|
-| Single sat (50k steps) | 391 ms | **21 ms (19×)** | N/A |
-| Batch 1k sats × 864 steps | 7074 ms | **13 ms (566×)** | 245 ms (29×) |
-| Batch 5k sats × 864 steps | 36854 ms | **55 ms (676×)** | 291 ms (127×) |
-| Conjunction 200×200 1h | 6262 ms | 498 ms (13×) | **45 ms (139×)** |
-| Conjunction 400×400 2h | 26677 ms | 3856 ms (7×) | **125 ms (214×)** |
-
-C++/OpenMP is faster than CUDA for batch propagation at all tested sizes (no
-PCIe overhead). CUDA dominates conjunction screening where pairwise
-calculations are compute-bound.
-
-See [docs/performance.md](docs/performance.md) for full benchmarks, scaling
-analysis, roofline, and kernel occupancy. See [docs/validation.md](docs/validation.md)
-for physics validation results (energy conservation, SGP4 comparison, J2
-regression, etc.).
+The router in `astrosis/core/accelerator.py` selects the best backend. See
+[docs/architecture.md](docs/architecture.md) for data flow details and
+[docs/design.md](docs/design.md) for design decisions (fixed-step RK4 vs
+adaptive, J2–J4 vs EGM2008, AoS vs SoA, FP64 vs FP32).
 
 ## Backend auto-selection
 
